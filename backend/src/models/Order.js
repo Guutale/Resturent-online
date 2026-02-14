@@ -40,12 +40,38 @@ const StatusEventSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const DeliveryLocationSchema = new mongoose.Schema(
+  {
+    lat: { type: Number },
+    lng: { type: Number },
+    mapsLink: { type: String, trim: true },
+  },
+  { _id: false }
+);
+
 const OrderSchema = new mongoose.Schema(
   {
     orderNumber: { type: String, unique: true, required: true, index: true },
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
     assignedDeliveryUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User", index: true },
+    deliveryAssignedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     deliveryAssignedAt: { type: Date },
+    outForDeliveryAt: { type: Date },
+    preparedAt: { type: Date },
+    failedAt: { type: Date },
+    kitchenStatus: {
+      type: String,
+      enum: ["pending", "cooking", "ready"],
+      default: "pending",
+      index: true,
+    },
+    deliveryStatus: {
+      type: String,
+      enum: ["unassigned", "assigned", "out_for_delivery", "delivered", "failed"],
+      default: "unassigned",
+      index: true,
+    },
+    deliveryLocation: { type: DeliveryLocationSchema },
     items: { type: [OrderItemSchema], required: true },
     subtotal: { type: Number, required: true, min: 0 },
     deliveryFee: { type: Number, required: true, min: 0 },
@@ -66,7 +92,7 @@ const OrderSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["pending", "preparing", "assigned", "out_for_delivery", "on_the_way", "delivered", "cancelled"],
+      enum: ["pending", "preparing", "ready", "assigned", "out_for_delivery", "on_the_way", "delivered", "failed", "cancelled"],
       default: "pending",
       index: true,
     },

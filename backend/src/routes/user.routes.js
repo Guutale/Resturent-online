@@ -1,6 +1,7 @@
 ﻿import { Router } from "express";
 import {
   addAddress,
+  adminCreateUser,
   adminDeleteUser,
   adminGetUser,
   adminListUsers,
@@ -22,6 +23,7 @@ router.post("/me/addresses", authMiddleware, addAddress);
 router.patch("/me/addresses/:id", authMiddleware, updateAddress);
 router.delete("/me/addresses/:id", authMiddleware, deleteAddress);
 
+router.post("/", authMiddleware, adminMiddleware, adminCreateUser);
 router.get("/", authMiddleware, adminMiddleware, adminListUsers);
 router.get("/:id/orders", authMiddleware, adminMiddleware, adminUserOrders);
 router.get("/:id", authMiddleware, adminMiddleware, adminGetUser);

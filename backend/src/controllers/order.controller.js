@@ -15,7 +15,19 @@ const parsePagination = (query) => {
 
 const escapeRegex = (value = "") => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-const ORDER_STATUSES = ["pending", "preparing", "assigned", "out_for_delivery", "on_the_way", "delivered", "cancelled"];
+const ORDER_STATUSES = [
+  "pending",
+  "preparing",
+  "ready",
+  "assigned",
+  "out_for_delivery",
+  "on_the_way",
+  "delivered",
+  "failed",
+  "cancelled",
+];
+
+const KITCHEN_STATUSES = ["pending", "cooking", "ready"];
 
 const escapeHtml = (value = "") =>
   String(value).replace(/[&<>"']/g, (ch) => ({
@@ -37,8 +49,51 @@ const pushStatusHistory = (order, status, actor, note) => {
   });
 };
 
+const applyStatusSideEffects = (order, status) => {
+  const now = new Date();
+  const normalized = status === "on_the_way" ? "out_for_delivery" : status;
+
+  if (normalized === "pending") {
+    if (!order.kitchenStatus) order.kitchenStatus = "pending";
+    if (!order.deliveryStatus) order.deliveryStatus = "unassigned";
+  }
+
+  if (normalized === "preparing") {
+    order.kitchenStatus = "cooking";
+  }
+
+  if (normalized === "ready") {
+    order.kitchenStatus = "ready";
+    if (!order.preparedAt) order.preparedAt = now;
+  }
+
+  if (normalized === "assigned") {
+    order.deliveryStatus = "assigned";
+    if (!order.deliveryAssignedAt) order.deliveryAssignedAt = now;
+  }
+
+  if (normalized === "out_for_delivery") {
+    order.deliveryStatus = "out_for_delivery";
+    if (!order.outForDeliveryAt) order.outForDeliveryAt = now;
+  }
+
+  if (normalized === "delivered") {
+    order.deliveryStatus = "delivered";
+    if (!order.deliveredAt) order.deliveredAt = now;
+  }
+
+  if (normalized === "failed") {
+    order.deliveryStatus = "failed";
+    if (!order.failedAt) order.failedAt = now;
+  }
+
+  if (normalized === "cancelled") {
+    if (!order.cancelledAt) order.cancelledAt = now;
+  }
+};
+
 export const createOrder = asyncHandler(async (req, res) => {
-  const { items = [], deliveryAddress, phone, paymentMethod = "COD", customerName } = req.body;
+  const { items = [], deliveryAddress, phone, paymentMethod = "COD", customerName, deliveryLocation } = req.body;
 
   if (!Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ message: "items are required" });
@@ -141,6 +196,20 @@ export const createOrder = asyncHandler(async (req, res) => {
 
     const initialStatus = "pending";
 
+    const safeDeliveryLocation = {};
+    if (deliveryLocation && typeof deliveryLocation === "object") {
+      if (deliveryLocation.lat !== undefined) safeDeliveryLocation.lat = Number(deliveryLocation.lat);
+      if (deliveryLocation.lng !== undefined) safeDeliveryLocation.lng = Number(deliveryLocation.lng);
+      if (typeof deliveryLocation.mapsLink === "string") safeDeliveryLocation.mapsLink = deliveryLocation.mapsLink.trim();
+
+      if (Number.isNaN(safeDeliveryLocation.lat)) delete safeDeliveryLocation.lat;
+      if (Number.isNaN(safeDeliveryLocation.lng)) delete safeDeliveryLocation.lng;
+
+      if (safeDeliveryLocation.lat !== undefined && safeDeliveryLocation.lng !== undefined && !safeDeliveryLocation.mapsLink) {
+        safeDeliveryLocation.mapsLink = `https://www.google.com/maps?q=${safeDeliveryLocation.lat},${safeDeliveryLocation.lng}`;
+      }
+    }
+
     order = await Order.create({
       orderNumber,
       userId: req.user.id,
@@ -150,8 +219,11 @@ export const createOrder = asyncHandler(async (req, res) => {
       total,
       customer: { name: displayName, phone },
       deliveryAddress,
+      deliveryLocation: Object.keys(safeDeliveryLocation).length ? safeDeliveryLocation : undefined,
       paymentMethod,
       paymentStatus: paymentMethod === "COD" ? "unpaid" : "paid",
+      kitchenStatus: "pending",
+      deliveryStatus: "unassigned",
       status: initialStatus,
       statusHistory: [
         {
@@ -231,10 +303,12 @@ export const getOrderById = asyncHandler(async (req, res) => {
 
   const isOwner = String(order.userId) === req.user.id;
   const isAdmin = req.user.role === "admin";
+  const isDispatcher = req.user.role === "dispatcher";
+  const isChef = req.user.role === "chef" && ["pending", "preparing", "ready"].includes(order.status);
   const isAssignedDelivery =
     req.user.role === "delivery" && String(order.assignedDeliveryUserId || "") === req.user.id;
 
-  if (!isOwner && !isAdmin && !isAssignedDelivery) {
+  if (!isOwner && !isAdmin && !isDispatcher && !isChef && !isAssignedDelivery) {
     return res.status(403).json({ message: "Forbidden" });
   }
 
@@ -250,10 +324,12 @@ export const getOrderInvoice = asyncHandler(async (req, res) => {
 
   const isOwner = String(order.userId) === req.user.id;
   const isAdmin = req.user.role === "admin";
+  const isDispatcher = req.user.role === "dispatcher";
+  const isChef = req.user.role === "chef" && ["pending", "preparing", "ready"].includes(order.status);
   const isAssignedDelivery =
     req.user.role === "delivery" && String(order.assignedDeliveryUserId || "") === req.user.id;
 
-  if (!isOwner && !isAdmin && !isAssignedDelivery) {
+  if (!isOwner && !isAdmin && !isDispatcher && !isChef && !isAssignedDelivery) {
     return res.status(403).json({ message: "Forbidden" });
   }
 
@@ -407,9 +483,7 @@ export const adminUpdateOrderStatus = asyncHandler(async (req, res) => {
   const prev = order.status;
   order.status = status;
   pushStatusHistory(order, status, req.user, "admin_update");
-
-  if (status === "delivered" && !order.deliveredAt) order.deliveredAt = new Date();
-  if (status === "cancelled" && !order.cancelledAt) order.cancelledAt = new Date();
+  applyStatusSideEffects(order, status);
   await order.save();
 
   if (String(order.userId)) {
@@ -497,14 +571,33 @@ export const adminAssignDelivery = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: "Order not found" });
   }
 
+  if (order.status === "delivered" || order.status === "cancelled" || order.status === "failed") {
+    return res.status(400).json({ message: "Cannot assign delivery for a completed order" });
+  }
+
+  if (order.assignedDeliveryUserId) {
+    return res.status(400).json({ message: "Order already has an assigned delivery user" });
+  }
+
   const prev = { status: order.status, assignedDeliveryUserId: order.assignedDeliveryUserId };
 
   order.assignedDeliveryUserId = deliveryUser._id;
+  order.deliveryAssignedByUserId = req.user.id;
   order.deliveryAssignedAt = new Date();
   order.status = "assigned";
+  order.deliveryStatus = "assigned";
   pushStatusHistory(order, "assigned", req.user, `assigned_to:${deliveryUser._id}`);
 
   await order.save();
+
+  await createNotification({
+    audience: "user",
+    userId: deliveryUser._id,
+    title: "New delivery assigned",
+    message: `Order ${order.orderNumber} has been assigned to you.`,
+    type: "delivery_assigned",
+    data: { orderId: order._id, orderNumber: order.orderNumber },
+  });
 
   await createNotification({
     audience: "user",
@@ -534,7 +627,7 @@ export const deliveryAssignedOrders = asyncHandler(async (req, res) => {
   if (status && ORDER_STATUSES.includes(status)) {
     filter.status = status;
   } else {
-    filter.status = { $in: ["assigned", "out_for_delivery"] };
+    filter.status = { $in: ["assigned", "out_for_delivery", "on_the_way"] };
   }
 
   const total = await Order.countDocuments(filter);
@@ -551,7 +644,7 @@ export const deliveryAssignedOrders = asyncHandler(async (req, res) => {
 
 export const deliveryUpdateOrderStatus = asyncHandler(async (req, res) => {
   const { status } = req.body;
-  const allowed = ["out_for_delivery", "delivered"];
+  const allowed = ["out_for_delivery", "delivered", "failed", "on_the_way"];
 
   if (!allowed.includes(status)) {
     return res.status(400).json({ message: "Invalid status" });
@@ -562,23 +655,28 @@ export const deliveryUpdateOrderStatus = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: "Order not found" });
   }
 
-  if (String(order.assignedDeliveryUserId || "") !== req.user.id) {
+  const isDelivery = req.user.role === "delivery";
+  const isDispatcher = req.user.role === "dispatcher";
+
+  if (isDelivery && String(order.assignedDeliveryUserId || "") !== req.user.id) {
     return res.status(403).json({ message: "Forbidden" });
   }
 
   const prev = order.status;
 
-  if (status === "out_for_delivery" && prev !== "assigned") {
+  const normalized = status === "on_the_way" ? "out_for_delivery" : status;
+
+  if (normalized === "out_for_delivery" && prev !== "assigned") {
     return res.status(400).json({ message: "Order must be assigned before it can go out for delivery" });
   }
 
-  if (status === "delivered" && prev !== "out_for_delivery") {
+  if ((normalized === "delivered" || normalized === "failed") && prev !== "out_for_delivery" && prev !== "on_the_way") {
     return res.status(400).json({ message: "Order must be out for delivery before it can be delivered" });
   }
 
-  order.status = status;
-  pushStatusHistory(order, status, req.user, "delivery_update");
-  if (status === "delivered" && !order.deliveredAt) order.deliveredAt = new Date();
+  order.status = normalized;
+  pushStatusHistory(order, normalized, req.user, isDispatcher ? "dispatcher_delivery_update" : "delivery_update");
+  applyStatusSideEffects(order, normalized);
 
   await order.save();
 
@@ -593,10 +691,98 @@ export const deliveryUpdateOrderStatus = asyncHandler(async (req, res) => {
 
   await writeAuditLog({
     actor: req.user,
-    action: "delivery.order_status_update",
+    action: isDispatcher ? "dispatcher.order_status_update" : "delivery.order_status_update",
     entityType: "Order",
     entityId: order._id,
-    meta: { orderNumber: order.orderNumber, prev, next: status },
+    meta: { orderNumber: order.orderNumber, prev, next: normalized },
+  });
+
+  return res.json({ order });
+});
+
+export const kitchenOrders = asyncHandler(async (req, res) => {
+  const { kitchenStatus, search } = req.query;
+  const { page, limit, skip } = parsePagination(req.query);
+
+  const filter = { status: { $in: ["pending", "preparing", "ready"] } };
+  if (kitchenStatus && KITCHEN_STATUSES.includes(kitchenStatus)) {
+    filter.kitchenStatus = kitchenStatus;
+  }
+  if (search) filter.orderNumber = { $regex: escapeRegex(String(search)), $options: "i" };
+
+  const total = await Order.countDocuments(filter);
+  const pages = Math.ceil(total / limit);
+
+  const items = await Order.find(filter)
+    .sort({ createdAt: 1 })
+    .skip(skip)
+    .limit(limit)
+    .lean();
+
+  return res.json({ items, page, pages, total });
+});
+
+export const updateKitchenStatus = asyncHandler(async (req, res) => {
+  const { kitchenStatus } = req.body;
+
+  if (!KITCHEN_STATUSES.includes(kitchenStatus)) {
+    return res.status(400).json({ message: "Invalid kitchenStatus" });
+  }
+
+  const order = await Order.findById(req.params.id);
+  if (!order) return res.status(404).json({ message: "Order not found" });
+
+  if (order.status === "delivered" || order.status === "cancelled" || order.status === "failed") {
+    return res.status(400).json({ message: "Cannot update kitchen status for a completed order" });
+  }
+
+  const current = order.kitchenStatus || (order.status === "preparing" ? "cooking" : order.status === "ready" ? "ready" : "pending");
+  const next = kitchenStatus;
+
+  const allowedTransitions = {
+    pending: ["cooking"],
+    cooking: ["ready"],
+    ready: [],
+  };
+
+  if (current !== next && !allowedTransitions[current]?.includes(next)) {
+    return res.status(400).json({ message: `Invalid kitchen status transition: ${current} -> ${next}` });
+  }
+
+  const prev = { kitchenStatus: current, status: order.status };
+
+  order.kitchenStatus = next;
+
+  if (next === "cooking" && order.status === "pending") {
+    order.status = "preparing";
+    pushStatusHistory(order, "preparing", req.user, "kitchen_start");
+  }
+
+  if (next === "ready") {
+    order.status = "ready";
+    pushStatusHistory(order, "ready", req.user, "kitchen_ready");
+    if (!order.preparedAt) order.preparedAt = new Date();
+  }
+
+  await order.save();
+
+  if (String(order.userId)) {
+    await createNotification({
+      audience: "user",
+      userId: order.userId,
+      title: "Order update",
+      message: `Your order ${order.orderNumber} is now ${order.status.replaceAll("_", " ")}.`,
+      type: "order_status_updated",
+      data: { orderId: order._id, orderNumber: order.orderNumber, status: order.status },
+    });
+  }
+
+  await writeAuditLog({
+    actor: req.user,
+    action: "chef.kitchen_status_update",
+    entityType: "Order",
+    entityId: order._id,
+    meta: { orderNumber: order.orderNumber, prev, next: { kitchenStatus: order.kitchenStatus, status: order.status } },
   });
 
   return res.json({ order });

@@ -66,7 +66,19 @@ const DeliveryOrdersPage = () => {
                   <td><span className={statusClass(o.status)}>{o.status}</span></td>
                   <td>${Number(o.total || 0).toFixed(2)}</td>
                   <td className="admin-muted">
-                    {o.deliveryAddress?.district}, {o.deliveryAddress?.street}
+                    <div>{o.deliveryAddress?.district}, {o.deliveryAddress?.street}</div>
+                    <div style={{ marginTop: 6, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                      {o.customer?.phone && (
+                        <a className="admin-link" href={`tel:${o.customer.phone}`}>
+                          <i className="fa-solid fa-phone" /> Call
+                        </a>
+                      )}
+                      {o.deliveryLocation?.mapsLink && (
+                        <a className="admin-link" href={o.deliveryLocation.mapsLink} target="_blank" rel="noreferrer">
+                          <i className="fa-solid fa-location-dot" /> Map
+                        </a>
+                      )}
+                    </div>
                   </td>
                   <td>
                     <div className="admin-row-actions">
@@ -76,9 +88,14 @@ const DeliveryOrdersPage = () => {
                         </button>
                       )}
                       {o.status === "out_for_delivery" && (
-                        <button type="button" className="admin-btn-primary" onClick={() => update(o._id, "delivered")}>
-                          Delivered
-                        </button>
+                        <>
+                          <button type="button" className="admin-btn-primary" onClick={() => update(o._id, "delivered")}>
+                            Delivered
+                          </button>
+                          <button type="button" className="admin-btn-secondary" onClick={() => update(o._id, "failed")}>
+                            Failed
+                          </button>
+                        </>
                       )}
                       <a className="admin-btn-link" href={`${API_BASE}/orders/${o._id}/invoice`} target="_blank" rel="noreferrer">
                         <i className="fa-solid fa-file-invoice" /> Invoice
@@ -101,4 +118,3 @@ const DeliveryOrdersPage = () => {
 };
 
 export default DeliveryOrdersPage;
-

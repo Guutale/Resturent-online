@@ -13,6 +13,26 @@ const AddressSchema = new mongoose.Schema({
   isDefault: { type: Boolean, default: false },
 });
 
+const StaffSchema = new mongoose.Schema(
+  {
+    nationalId: { type: String, trim: true },
+    address: { type: String, trim: true },
+    experience: { type: String, trim: true },
+    monthlySalary: { type: Number, min: 0 },
+    salaryPayDay: { type: Number, min: 1, max: 31 },
+    startDate: { type: Date },
+
+    vehicleType: { type: String, trim: true },
+    availabilityStatus: {
+      type: String,
+      enum: ["available", "busy", "offline"],
+      default: "offline",
+      index: true,
+    },
+  },
+  { _id: false }
+);
+
 const UserSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
@@ -25,9 +45,15 @@ const UserSchema = new mongoose.Schema(
       index: true,
     },
     passwordHash: { type: String, required: true },
-    role: { type: String, enum: ["user", "admin", "delivery"], default: "user", index: true },
+    role: {
+      type: String,
+      enum: ["user", "admin", "dispatcher", "delivery", "chef", "waiter"],
+      default: "user",
+      index: true,
+    },
     phone: { type: String, trim: true },
     addresses: { type: [AddressSchema], default: [] },
+    staff: { type: StaffSchema },
     isBlocked: { type: Boolean, default: false, index: true },
   },
   { timestamps: true }

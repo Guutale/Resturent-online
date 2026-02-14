@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiRequest } from "../../lib/api";
 
-const statuses = ["pending", "preparing", "assigned", "out_for_delivery", "delivered", "cancelled", "on_the_way"];
+const statuses = ["pending", "preparing", "ready", "assigned", "out_for_delivery", "delivered", "failed", "cancelled", "on_the_way"];
 const statusClass = (status) => `badge ${status}`;
 
 const AdminOrdersPage = () => {
@@ -67,9 +67,11 @@ const AdminOrdersPage = () => {
         <button type="button" className={`admin-tab${tab === "all" ? " active" : ""}`} onClick={() => setTab("all")}>All</button>
         <button type="button" className={`admin-tab${tab === "pending" ? " active" : ""}`} onClick={() => setTab("pending")}>Pending</button>
         <button type="button" className={`admin-tab${tab === "preparing" ? " active" : ""}`} onClick={() => setTab("preparing")}>Preparing</button>
+        <button type="button" className={`admin-tab${tab === "ready" ? " active" : ""}`} onClick={() => setTab("ready")}>Ready</button>
         <button type="button" className={`admin-tab${tab === "assigned" ? " active" : ""}`} onClick={() => setTab("assigned")}>Assigned</button>
         <button type="button" className={`admin-tab${tab === "out_for_delivery" ? " active" : ""}`} onClick={() => setTab("out_for_delivery")}>Out for Delivery</button>
         <button type="button" className={`admin-tab${tab === "delivered" ? " active" : ""}`} onClick={() => setTab("delivered")}>Delivered</button>
+        <button type="button" className={`admin-tab${tab === "failed" ? " active" : ""}`} onClick={() => setTab("failed")}>Failed</button>
         <button type="button" className={`admin-tab${tab === "cancelled" ? " active" : ""}`} onClick={() => setTab("cancelled")}>Cancelled</button>
       </div>
 

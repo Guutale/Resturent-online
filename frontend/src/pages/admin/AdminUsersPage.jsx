@@ -35,8 +35,11 @@ const AdminUsersPage = () => {
     const total = items.length;
     const admins = items.filter((u) => u.role === "admin").length;
     const delivery = items.filter((u) => u.role === "delivery").length;
+    const chefs = items.filter((u) => u.role === "chef").length;
+    const waiters = items.filter((u) => u.role === "waiter").length;
+    const dispatchers = items.filter((u) => u.role === "dispatcher").length;
     const blocked = items.filter((u) => u.isBlocked).length;
-    return { total, admins, delivery, blocked };
+    return { total, admins, delivery, chefs, waiters, dispatchers, blocked };
   }, [items]);
 
   const updateUser = async (id, payload) => {
@@ -82,6 +85,9 @@ const AdminUsersPage = () => {
             <option value="">All roles</option>
             <option value="user">User</option>
             <option value="admin">Admin</option>
+            <option value="dispatcher">Dispatcher</option>
+            <option value="chef">Chef</option>
+            <option value="waiter">Waiter</option>
             <option value="delivery">Delivery</option>
           </select>
           <select className="admin-select" value={status} onChange={(e) => setStatus(e.target.value)}>
@@ -169,6 +175,9 @@ const AdminUsersPage = () => {
                     >
                       <option value="user">User</option>
                       <option value="admin">Admin</option>
+                      <option value="dispatcher">Dispatcher</option>
+                      <option value="chef">Chef</option>
+                      <option value="waiter">Waiter</option>
                       <option value="delivery">Delivery</option>
                     </select>
                     <div style={{ marginTop: 8 }}>

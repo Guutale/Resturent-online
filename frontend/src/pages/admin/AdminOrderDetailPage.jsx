@@ -3,8 +3,8 @@ import { Link, useParams } from "react-router-dom";
 import { apiRequest } from "../../lib/api";
 
 const statusClass = (status) => `badge ${status}`;
-const statuses = ["pending", "preparing", "assigned", "out_for_delivery", "delivered", "cancelled", "on_the_way"];
-const flow = ["pending", "preparing", "assigned", "out_for_delivery", "delivered"];
+const statuses = ["pending", "preparing", "ready", "assigned", "out_for_delivery", "delivered", "failed", "cancelled", "on_the_way"];
+const flow = ["pending", "preparing", "ready", "assigned", "out_for_delivery", "delivered"];
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api").replace(/\/+$/, "");
 
 const AdminOrderDetailPage = () => {
@@ -34,19 +34,26 @@ const AdminOrderDetailPage = () => {
   const timeline = useMemo(() => {
     const raw = order?.status || "pending";
     const current = raw === "on_the_way" ? "out_for_delivery" : raw;
-    const idx = flow.indexOf(current);
+    const isCancelled = raw === "cancelled";
+    const isFailed = raw === "failed";
+    const effective = isFailed ? "out_for_delivery" : current;
+    const idx = flow.indexOf(effective);
 
-    return flow.map((s, i) => ({
+    const base = flow.map((s, i) => ({
       key: s,
       label: s.replaceAll("_", " "),
-      state: raw === "cancelled"
+      state: isCancelled || isFailed
         ? "upcoming"
         : i < idx
           ? "done"
           : i === idx
             ? "current"
             : "upcoming",
-    })).concat(raw === "cancelled" ? [{ key: "cancelled", label: "cancelled", state: "current" }] : []);
+    }));
+
+    if (isCancelled) return base.concat([{ key: "cancelled", label: "cancelled", state: "current" }]);
+    if (isFailed) return base.concat([{ key: "failed", label: "failed", state: "current" }]);
+    return base;
   }, [order?.status]);
 
   const updateStatus = async () => {

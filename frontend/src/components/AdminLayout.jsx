@@ -44,6 +44,14 @@ const AdminLayout = () => {
             <i className="fa-solid fa-users" />
             Users
           </NavLink>
+          <NavLink to="/admin/staff" className={navClass}>
+            <i className="fa-solid fa-user-gear" />
+            Staff
+          </NavLink>
+          <NavLink to="/admin/payroll" className={navClass}>
+            <i className="fa-solid fa-money-check-dollar" />
+            Payroll
+          </NavLink>
           <NavLink to="/admin/payments" className={navClass}>
             <i className="fa-solid fa-credit-card" />
             Payments

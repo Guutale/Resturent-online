@@ -10,9 +10,74 @@ const parsePagination = (query) => {
   return { page, limit, skip: (page - 1) * limit };
 };
 
-const isRole = (value) => value === "user" || value === "admin" || value === "delivery";
+const ROLES = ["user", "admin", "dispatcher", "delivery", "chef", "waiter"];
+const isRole = (value) => ROLES.includes(value);
+const isStaffRole = (value) => value === "dispatcher" || value === "delivery" || value === "chef" || value === "waiter";
 
 const escapeRegex = (value = "") => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const normalizeEmail = (value) => String(value || "").trim().toLowerCase();
+
+const normalizePhone = (value) => {
+  if (value === undefined || value === null) return "";
+  return String(value).trim();
+};
+
+const ensureStaffObject = (user) => {
+  if (!user.staff) user.staff = {};
+  return user.staff;
+};
+
+const applyStaffPatch = (user, staffPatch) => {
+  if (!staffPatch || typeof staffPatch !== "object") return;
+  const staff = ensureStaffObject(user);
+
+  if (typeof staffPatch.nationalId === "string") staff.nationalId = staffPatch.nationalId.trim();
+  if (typeof staffPatch.address === "string") staff.address = staffPatch.address.trim();
+  if (typeof staffPatch.experience === "string") staff.experience = staffPatch.experience.trim();
+
+  if (staffPatch.monthlySalary !== undefined) {
+    const v = Number(staffPatch.monthlySalary);
+    if (!Number.isFinite(v) || v < 0) {
+      const err = new Error("monthlySalary must be a non-negative number");
+      err.statusCode = 400;
+      throw err;
+    }
+    staff.monthlySalary = v;
+  }
+
+  if (staffPatch.salaryPayDay !== undefined) {
+    const v = Number(staffPatch.salaryPayDay);
+    if (!Number.isInteger(v) || v < 1 || v > 31) {
+      const err = new Error("salaryPayDay must be an integer from 1 to 31");
+      err.statusCode = 400;
+      throw err;
+    }
+    staff.salaryPayDay = v;
+  }
+
+  if (staffPatch.startDate !== undefined) {
+    const d = new Date(staffPatch.startDate);
+    if (Number.isNaN(d.getTime())) {
+      const err = new Error("startDate must be a valid date");
+      err.statusCode = 400;
+      throw err;
+    }
+    staff.startDate = d;
+  }
+
+  if (typeof staffPatch.vehicleType === "string") staff.vehicleType = staffPatch.vehicleType.trim();
+
+  if (staffPatch.availabilityStatus !== undefined) {
+    const allowed = ["available", "busy", "offline"];
+    if (!allowed.includes(staffPatch.availabilityStatus)) {
+      const err = new Error("availabilityStatus must be available, busy, or offline");
+      err.statusCode = 400;
+      throw err;
+    }
+    staff.availabilityStatus = staffPatch.availabilityStatus;
+  }
+};
 
 export const updateMe = asyncHandler(async (req, res) => {
   const { name, phone } = req.body;
@@ -35,6 +100,7 @@ export const updateMe = asyncHandler(async (req, res) => {
       role: user.role,
       phone: user.phone,
       addresses: user.addresses,
+      staff: user.staff,
     },
   });
 });
@@ -156,7 +222,7 @@ export const adminListUsers = asyncHandler(async (req, res) => {
 
   if (search) {
     const rx = new RegExp(escapeRegex(String(search).trim()), "i");
-    filter.$or = [{ name: rx }, { email: rx }];
+    filter.$or = [{ name: rx }, { email: rx }, { phone: rx }];
   }
 
   const total = await User.countDocuments(filter);
@@ -178,9 +244,142 @@ export const adminGetUser = asyncHandler(async (req, res) => {
   return res.json({ user });
 });
 
+export const adminCreateUser = asyncHandler(async (req, res) => {
+  const { name, email, password, role, phone, staff } = req.body;
+  const normalizedEmail = normalizeEmail(email);
+
+  if (!name || !normalizedEmail || !password) {
+    return res.status(400).json({ message: "name, email and password are required" });
+  }
+
+  if (String(password).length < 6) {
+    return res.status(400).json({ message: "password must be at least 6 characters" });
+  }
+
+  const nextRole = isRole(role) ? role : "user";
+  const normalizedPhone = normalizePhone(phone);
+
+  if (isStaffRole(nextRole) && !normalizedPhone) {
+    return res.status(400).json({ message: "phone is required for staff accounts" });
+  }
+
+  const existingEmail = await User.findOne({ email: normalizedEmail }).lean();
+  if (existingEmail) {
+    return res.status(400).json({ message: "Email already in use" });
+  }
+
+  if (normalizedPhone) {
+    const existingPhone = await User.findOne({ phone: normalizedPhone }).lean();
+    if (existingPhone) {
+      return res.status(400).json({ message: "Phone already in use" });
+    }
+  }
+
+  const passwordHash = await bcrypt.hash(String(password), 10);
+
+  const doc = {
+    name: String(name).trim(),
+    email: normalizedEmail,
+    passwordHash,
+    role: nextRole,
+    phone: normalizedPhone || undefined,
+    staff: undefined,
+  };
+
+  if (staff && typeof staff === "object") {
+    doc.staff = {};
+    if (typeof staff.nationalId === "string") doc.staff.nationalId = staff.nationalId.trim();
+    if (typeof staff.address === "string") doc.staff.address = staff.address.trim();
+    if (typeof staff.experience === "string") doc.staff.experience = staff.experience.trim();
+    if (typeof staff.vehicleType === "string") doc.staff.vehicleType = staff.vehicleType.trim();
+    if (staff.availabilityStatus && ["available", "busy", "offline"].includes(staff.availabilityStatus)) {
+      doc.staff.availabilityStatus = staff.availabilityStatus;
+    }
+
+    if (staff.monthlySalary !== undefined) {
+      const v = Number(staff.monthlySalary);
+      if (!Number.isFinite(v) || v < 0) {
+        return res.status(400).json({ message: "monthlySalary must be a non-negative number" });
+      }
+      doc.staff.monthlySalary = v;
+    }
+
+    if (staff.salaryPayDay !== undefined) {
+      const v = Number(staff.salaryPayDay);
+      if (!Number.isInteger(v) || v < 1 || v > 31) {
+        return res.status(400).json({ message: "salaryPayDay must be an integer from 1 to 31" });
+      }
+      doc.staff.salaryPayDay = v;
+    }
+
+    if (staff.startDate !== undefined) {
+      const d = new Date(staff.startDate);
+      if (Number.isNaN(d.getTime())) {
+        return res.status(400).json({ message: "startDate must be a valid date" });
+      }
+      doc.staff.startDate = d;
+    }
+  }
+
+  if (nextRole === "chef" || nextRole === "waiter") {
+    const addr = String(staff?.address || "").trim();
+    const exp = String(staff?.experience || "").trim();
+    const monthlySalary = Number(staff?.monthlySalary);
+    const salaryPayDay = Number(staff?.salaryPayDay);
+    const startDate = new Date(staff?.startDate);
+
+    if (!addr || !exp || !Number.isFinite(monthlySalary) || monthlySalary < 0) {
+      return res.status(400).json({ message: "address, experience and monthlySalary are required for chef/waiter" });
+    }
+
+    if (!Number.isInteger(salaryPayDay) || salaryPayDay < 1 || salaryPayDay > 31) {
+      return res.status(400).json({ message: "salaryPayDay (1-31) is required for chef/waiter" });
+    }
+
+    if (Number.isNaN(startDate.getTime())) {
+      return res.status(400).json({ message: "startDate is required for chef/waiter" });
+    }
+
+    doc.staff = {
+      ...(doc.staff || {}),
+      address: addr,
+      experience: exp,
+      monthlySalary,
+      salaryPayDay,
+      startDate,
+    };
+
+    if (typeof staff?.nationalId === "string" && staff.nationalId.trim()) {
+      doc.staff.nationalId = staff.nationalId.trim();
+    }
+  }
+
+  const user = await User.create(doc);
+
+  await writeAuditLog({
+    actor: req.user,
+    action: "admin.user_create",
+    entityType: "User",
+    entityId: user._id,
+    meta: { email: user.email, role: user.role },
+  });
+
+  return res.status(201).json({
+    user: {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      phone: user.phone,
+      staff: user.staff,
+      isBlocked: user.isBlocked,
+    },
+  });
+});
+
 export const adminUpdateUser = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { isBlocked, role } = req.body;
+  const { isBlocked, role, name, email, phone, staff } = req.body;
 
   const user = await User.findById(id);
   if (!user) {
@@ -193,6 +392,8 @@ export const adminUpdateUser = asyncHandler(async (req, res) => {
   }
 
   const nextRole = isRole(role) ? role : undefined;
+  const nextEmail = email !== undefined ? normalizeEmail(email) : undefined;
+  const nextPhone = phone !== undefined ? normalizePhone(phone) : undefined;
 
   if (user.role === "admin" && user.isBlocked === false) {
     const isBlockingAdmin = typeof isBlocked === "boolean" && isBlocked === true && user.isBlocked === false;
@@ -210,10 +411,57 @@ export const adminUpdateUser = asyncHandler(async (req, res) => {
     }
   }
 
-  const prev = { role: user.role, isBlocked: user.isBlocked };
+  const prev = { role: user.role, isBlocked: user.isBlocked, name: user.name, email: user.email, phone: user.phone, staff: user.staff };
 
   if (typeof isBlocked === "boolean") user.isBlocked = isBlocked;
   if (nextRole) user.role = nextRole;
+  if (typeof name === "string" && name.trim()) user.name = name.trim();
+
+  if (nextEmail) {
+    const existingEmail = await User.findOne({ email: nextEmail, _id: { $ne: user._id } }).lean();
+    if (existingEmail) {
+      return res.status(400).json({ message: "Email already in use" });
+    }
+    user.email = nextEmail;
+  }
+
+  if (nextPhone !== undefined) {
+    if (nextPhone) {
+      const existingPhone = await User.findOne({ phone: nextPhone, _id: { $ne: user._id } }).lean();
+      if (existingPhone) {
+        return res.status(400).json({ message: "Phone already in use" });
+      }
+      user.phone = nextPhone;
+    } else {
+      user.phone = "";
+    }
+  }
+
+  applyStaffPatch(user, staff);
+
+  if (isStaffRole(user.role) && !normalizePhone(user.phone)) {
+    return res.status(400).json({ message: "phone is required for staff accounts" });
+  }
+
+  if (user.role === "chef" || user.role === "waiter") {
+    const addr = String(user.staff?.address || "").trim();
+    const exp = String(user.staff?.experience || "").trim();
+    const monthlySalary = user.staff?.monthlySalary;
+    const salaryPayDay = user.staff?.salaryPayDay;
+    const startDate = user.staff?.startDate;
+
+    if (!addr || !exp || typeof monthlySalary !== "number" || monthlySalary < 0) {
+      return res.status(400).json({ message: "Chef/Waiter require staff.address, staff.experience and staff.monthlySalary" });
+    }
+
+    if (!Number.isInteger(Number(salaryPayDay)) || salaryPayDay < 1 || salaryPayDay > 31) {
+      return res.status(400).json({ message: "Chef/Waiter require staff.salaryPayDay (1-31)" });
+    }
+
+    if (!(startDate instanceof Date) || Number.isNaN(startDate.getTime())) {
+      return res.status(400).json({ message: "Chef/Waiter require staff.startDate" });
+    }
+  }
 
   await user.save();
 
@@ -222,7 +470,7 @@ export const adminUpdateUser = asyncHandler(async (req, res) => {
     action: "admin.user_update",
     entityType: "User",
     entityId: user._id,
-    meta: { prev, next: { role: user.role, isBlocked: user.isBlocked } },
+    meta: { prev, next: { role: user.role, isBlocked: user.isBlocked, name: user.name, email: user.email, phone: user.phone, staff: user.staff } },
   });
 
   return res.json({
@@ -231,6 +479,8 @@ export const adminUpdateUser = asyncHandler(async (req, res) => {
       name: user.name,
       email: user.email,
       role: user.role,
+      phone: user.phone,
+      staff: user.staff,
       isBlocked: user.isBlocked,
     },
   });

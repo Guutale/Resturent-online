@@ -6,6 +6,10 @@ import AdminRoute from "./components/AdminRoute";
 import AdminLayout from "./components/AdminLayout";
 import DeliveryRoute from "./components/DeliveryRoute";
 import DeliveryLayout from "./components/DeliveryLayout";
+import ChefRoute from "./components/ChefRoute";
+import ChefLayout from "./components/ChefLayout";
+import DispatcherRoute from "./components/DispatcherRoute";
+import DispatcherLayout from "./components/DispatcherLayout";
 import HomePage from "./pages/HomePage";
 import MenuPage from "./pages/MenuPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
@@ -27,7 +31,12 @@ import AdminUsersPage from "./pages/admin/AdminUsersPage";
 import AdminUserDetailPage from "./pages/admin/AdminUserDetailPage";
 import AdminPaymentsPage from "./pages/admin/AdminPaymentsPage";
 import AdminNotificationsPage from "./pages/admin/AdminNotificationsPage";
+import AdminStaffPage from "./pages/admin/AdminStaffPage";
+import AdminPayrollPage from "./pages/admin/AdminPayrollPage";
 import DeliveryOrdersPage from "./pages/delivery/DeliveryOrdersPage";
+import ChefOrdersPage from "./pages/chef/ChefOrdersPage";
+import DispatcherOrdersPage from "./pages/dispatcher/DispatcherOrdersPage";
+import DispatcherDeliveryStaffPage from "./pages/dispatcher/DispatcherDeliveryStaffPage";
 
 const AppRouter = () => (
   <Routes>
@@ -54,8 +63,19 @@ const AppRouter = () => (
       <Route path="orders/:id" element={<AdminOrderDetailPage />} />
       <Route path="users" element={<AdminUsersPage />} />
       <Route path="users/:id" element={<AdminUserDetailPage />} />
+      <Route path="staff" element={<AdminStaffPage />} />
+      <Route path="payroll" element={<AdminPayrollPage />} />
       <Route path="payments" element={<AdminPaymentsPage />} />
       <Route path="notifications" element={<AdminNotificationsPage />} />
+    </Route>
+
+    <Route path="/chef" element={<ChefRoute><ChefLayout /></ChefRoute>}>
+      <Route index element={<ChefOrdersPage />} />
+    </Route>
+
+    <Route path="/dispatcher" element={<DispatcherRoute><DispatcherLayout /></DispatcherRoute>}>
+      <Route index element={<DispatcherOrdersPage />} />
+      <Route path="delivery-staff" element={<DispatcherDeliveryStaffPage />} />
     </Route>
 
     <Route path="/delivery" element={<DeliveryRoute><DeliveryLayout /></DeliveryRoute>}>

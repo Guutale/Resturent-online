@@ -8,6 +8,18 @@
 
 Base URL: `http://localhost:<PORT>/api` (example: `http://localhost:5001/api`)
 
+## Dev Seed Accounts
+From `backend/` run:
+- `npm run seed:roles`
+
+Default credentials (override via `backend/.env`):
+- Admin: `admin@mail.com` / `admin123`
+- Dispatcher: `dispatcher@mail.com` / `dispatcher123`
+- Chef: `chef@mail.com` / `chef123`
+- Waiter: `waiter@mail.com` / `waiter123`
+- Delivery: `delivery@mail.com` / `delivery123`
+- User: `user@mail.com` / `user123`
+
 ## Main Endpoints
 
 ### Auth
@@ -21,6 +33,7 @@ Base URL: `http://localhost:<PORT>/api` (example: `http://localhost:5001/api`)
 - `POST /users/me/addresses`
 - `PATCH /users/me/addresses/:id`
 - `DELETE /users/me/addresses/:id`
+- `POST /users` (admin, create staff/users with role)
 - `GET /users` (admin)
 - `GET /users/:id` (admin)
 - `GET /users/:id/orders` (admin)
@@ -46,13 +59,15 @@ Base URL: `http://localhost:<PORT>/api` (example: `http://localhost:5001/api`)
 - `POST /orders` (user)
 - `GET /orders/my` (user)
 - `GET /orders/assigned` (delivery)
-- `GET /orders/:id` (user/admin)
-- `GET /orders/:id/invoice` (user/admin/delivery)
+- `GET /orders/kitchen` (chef/admin)
+- `GET /orders/:id` (user/admin/dispatcher/delivery; chef can read kitchen orders)
+- `GET /orders/:id/invoice` (user/admin/dispatcher/chef/delivery)
 - `PATCH /orders/:id/cancel` (user)
-- `GET /orders` (admin)
+- `PATCH /orders/:id/kitchen-status` (chef/admin)
+- `GET /orders` (admin/dispatcher)
 - `PATCH /orders/:id/status` (admin)
-- `PATCH /orders/:id/assign-delivery` (admin)
-- `PATCH /orders/:id/delivery-status` (delivery)
+- `PATCH /orders/:id/assign-delivery` (admin/chef/dispatcher)
+- `PATCH /orders/:id/delivery-status` (delivery/dispatcher)
 
 ### Payments
 - `GET /payments` (admin)
@@ -65,6 +80,19 @@ Base URL: `http://localhost:<PORT>/api` (example: `http://localhost:5001/api`)
 - `GET /notifications/admin` (admin)
 - `PATCH /notifications/admin/read-all` (admin)
 - `PATCH /notifications/:id/read` (user/admin)
+
+### Payroll
+- `GET /payroll/payments` (admin)
+- `POST /payroll/payments` (admin)
+- `PATCH /payroll/payments/:id` (admin)
+- `GET /payroll/staff/:staffId/payments` (admin)
+- `GET /payroll/report?month=YYYY-MM&role=` (admin)
+
+### Delivery Staff
+- `GET /delivery-staff` (admin/dispatcher/chef)
+- `POST /delivery-staff` (admin/dispatcher)
+- `PATCH /delivery-staff/:id` (admin/dispatcher)
+- `GET /delivery-staff/:id/performance` (admin/dispatcher)
 
 ## Frontend Route Skeleton
 `frontend/src/router.jsx` includes all user/admin pages from your UI flow.

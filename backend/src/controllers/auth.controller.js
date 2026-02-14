@@ -10,6 +10,7 @@ const sanitizeUser = (user) => ({
   role: user.role,
   phone: user.phone,
   addresses: user.addresses,
+  staff: user.staff,
 });
 
 export const register = asyncHandler(async (req, res) => {

@@ -19,6 +19,10 @@ const LoginPage = () => {
       const data = await login(email, password);
       if (data?.user?.role === "admin") {
         nav("/admin", { replace: true });
+      } else if (data?.user?.role === "dispatcher") {
+        nav("/dispatcher", { replace: true });
+      } else if (data?.user?.role === "chef") {
+        nav("/chef", { replace: true });
       } else if (data?.user?.role === "delivery") {
         nav("/delivery", { replace: true });
       } else {

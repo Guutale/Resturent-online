@@ -8,6 +8,8 @@ import productRoutes from "./routes/product.routes.js";
 import orderRoutes from "./routes/order.routes.js";
 import paymentRoutes from "./routes/payment.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
+import payrollRoutes from "./routes/payroll.routes.js";
+import deliveryStaffRoutes from "./routes/deliveryStaff.routes.js";
 import { errorHandler, notFoundHandler } from "./middleware/error.js";
 
 const app = express();
@@ -26,6 +28,8 @@ app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/payroll", payrollRoutes);
+app.use("/api/delivery-staff", deliveryStaffRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
