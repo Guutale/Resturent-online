@@ -87,27 +87,33 @@ const MenuPage = () => {
       ) : (
         <div className="grid">
           {items.length === 0 && <div className="panel muted">No dishes found for this filter.</div>}
-          {items.map((p) => (
-            <div className="card" key={p._id}>
+          {items.map((p) => {
+            const outOfStock = !p.isAvailable || (typeof p.stockQty === "number" && p.stockQty === 0);
+            return (
+              <div className="card" key={p._id}>
               <img src={p.imageUrl || "https://images.unsplash.com/photo-1515003197210-e0cd71810b5f?w=800"} alt={p.title} />
               <div className="card-b">
                 <div className="row-between" style={{ marginBottom: "0.4rem" }}>
                   <strong>{p.title}</strong>
-                  <span className="status-chip">${p.price}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.45rem" }}>
+                    <span className="status-chip">${p.price}</span>
+                    {outOfStock && <span className="badge cancelled">Out of stock</span>}
+                  </div>
                 </div>
                 <p className="muted">{p.description || "Fresh and delicious"}</p>
                 <div className="row">
                   <button
-                    disabled={!p.isAvailable || (typeof p.stockQty === "number" && p.stockQty === 0)}
+                    disabled={outOfStock}
                     onClick={() => addToCart(p, 1)}
                   >
-                    Add
+                    {outOfStock ? "Out of stock" : "Add"}
                   </button>
                   <Link className="btn-ghost" to={`/menu/${p._id}`}>Details</Link>
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

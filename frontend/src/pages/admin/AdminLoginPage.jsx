@@ -10,6 +10,7 @@ const AdminLoginPage = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const from = location.state?.from;
+  const showDev = import.meta.env.DEV;
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -47,6 +48,31 @@ const AdminLoginPage = () => {
         </div>
 
         <button className="auth-submit">Login</button>
+
+        {showDev && (
+          <details style={{ marginTop: 12 }}>
+            <summary style={{ cursor: "pointer", fontWeight: 900, color: "#0f172a" }}>
+              Dev admin login
+            </summary>
+            <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+              <button
+                type="button"
+                className="btn-ghost"
+                onClick={() => {
+                  setEmail("admin@mail.com");
+                  setPassword("admin123");
+                }}
+                style={{ justifyContent: "space-between", display: "flex", alignItems: "center", gap: 12 }}
+              >
+                <span style={{ fontWeight: 900 }}>Admin</span>
+                <span className="muted" style={{ fontWeight: 700 }}>admin@mail.com / admin123</span>
+              </button>
+              <div className="muted" style={{ fontSize: 13 }}>
+                If login fails, run <code>npm run seed:roles</code> inside <code>backend/</code>.
+              </div>
+            </div>
+          </details>
+        )}
 
         <p className="muted" style={{ marginTop: "0.9rem", marginBottom: 0 }}>
           Back to <Link className="auth-link" to="/">Home</Link>

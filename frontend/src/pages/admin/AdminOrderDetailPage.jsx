@@ -1,21 +1,18 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { apiRequest } from "../../lib/api";
+import { openInvoice } from "../../lib/invoice";
 
 const statusClass = (status) => `badge ${status}`;
-const statuses = ["pending", "preparing", "ready", "assigned", "out_for_delivery", "delivered", "failed", "cancelled", "on_the_way"];
+const statuses = ["awaiting_payment", "pending_verification", "pending", "preparing", "ready", "assigned", "out_for_delivery", "delivered", "failed", "cancelled", "on_the_way"];
 const flow = ["pending", "preparing", "ready", "assigned", "out_for_delivery", "delivered"];
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api").replace(/\/+$/, "");
 
 const AdminOrderDetailPage = () => {
   const { id } = useParams();
   const [order, setOrder] = useState(null);
   const [nextStatus, setNextStatus] = useState("");
-  const [deliveryUsers, setDeliveryUsers] = useState([]);
-  const [deliveryUserId, setDeliveryUserId] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
-  const [assigning, setAssigning] = useState(false);
 
   const load = () =>
     apiRequest(`/orders/${id}`)
@@ -28,12 +25,12 @@ const AdminOrderDetailPage = () => {
 
   useEffect(() => {
     if (order?.status) setNextStatus(order.status);
-    if (order?.assignedDeliveryUserId) setDeliveryUserId(String(order.assignedDeliveryUserId));
-  }, [order?.assignedDeliveryUserId, order?.status]);
+  }, [order?.status]);
 
   const timeline = useMemo(() => {
     const raw = order?.status || "pending";
-    const current = raw === "on_the_way" ? "out_for_delivery" : raw;
+    const normalized = raw === "awaiting_payment" || raw === "pending_verification" ? "pending" : raw;
+    const current = normalized === "on_the_way" ? "out_for_delivery" : normalized;
     const isCancelled = raw === "cancelled";
     const isFailed = raw === "failed";
     const effective = isFailed ? "out_for_delivery" : current;
@@ -72,28 +69,6 @@ const AdminOrderDetailPage = () => {
     }
   };
 
-  useEffect(() => {
-    apiRequest("/users?role=delivery&limit=200")
-      .then((d) => setDeliveryUsers(d.items || []))
-      .catch(() => setDeliveryUsers([]));
-  }, []);
-
-  const assignDelivery = async () => {
-    setError("");
-    setAssigning(true);
-    try {
-      await apiRequest(`/orders/${id}/assign-delivery`, {
-        method: "PATCH",
-        body: JSON.stringify({ deliveryUserId }),
-      });
-      await load();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setAssigning(false);
-    }
-  };
-
   if (!order) {
     return (
       <div className="admin-page">
@@ -113,9 +88,20 @@ const AdminOrderDetailPage = () => {
         </div>
         <div className="admin-actions">
           <Link className="admin-link" to="/admin/orders">Back to Orders</Link>
-          <a className="admin-btn-link" href={`${API_BASE}/orders/${order._id}/invoice`} target="_blank" rel="noreferrer">
+          <button
+            type="button"
+            className="admin-btn-link"
+            onClick={async () => {
+              setError("");
+              try {
+                await openInvoice(order._id);
+              } catch (err) {
+                setError(err.message);
+              }
+            }}
+          >
             <i className="fa-solid fa-file-invoice" /> Invoice
-          </a>
+          </button>
         </div>
       </div>
 
@@ -149,24 +135,11 @@ const AdminOrderDetailPage = () => {
 
           <div className="admin-form-row">
             <div>
-              <div className="admin-label" style={{ marginBottom: 2 }}>Assign delivery</div>
-              <div className="admin-muted">Pick a delivery staff member for this order.</div>
+              <div className="admin-label" style={{ marginBottom: 2 }}>Delivery assignment</div>
+              <div className="admin-muted">Handled by Dispatcher.</div>
             </div>
-            <div className="admin-inline">
-              <select className="admin-select" value={deliveryUserId} onChange={(e) => setDeliveryUserId(e.target.value)}>
-                <option value="">Select delivery</option>
-                {deliveryUsers.map((u) => (
-                  <option key={u._id} value={u._id}>{u.name} ({u.email})</option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="admin-btn-primary"
-                onClick={assignDelivery}
-                disabled={!deliveryUserId || assigning}
-              >
-                {assigning ? "Assigning..." : "Assign"}
-              </button>
+            <div className="admin-muted" style={{ fontWeight: 900 }}>
+              {order.assignedDeliveryUserId ? "Assigned" : "Not assigned"}
             </div>
           </div>
 

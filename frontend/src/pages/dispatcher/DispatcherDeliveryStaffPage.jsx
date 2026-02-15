@@ -12,6 +12,8 @@ const emptyForm = {
   email: "",
   password: "",
   phone: "",
+  timeIn: "",
+  timeOut: "",
   vehicleType: "",
   availabilityStatus: "offline",
 };
@@ -67,6 +69,8 @@ const DispatcherDeliveryStaffPage = () => {
           password: form.password,
           phone: form.phone,
           staff: {
+            timeIn: form.timeIn || undefined,
+            timeOut: form.timeOut || undefined,
             vehicleType: form.vehicleType || undefined,
             availabilityStatus: form.availabilityStatus,
           },
@@ -246,6 +250,16 @@ const DispatcherDeliveryStaffPage = () => {
               </div>
               <div className="admin-form-2col">
                 <div>
+                  <label className="admin-label">Time In</label>
+                  <input className="admin-input" type="time" value={form.timeIn} onChange={(e) => setForm((p) => ({ ...p, timeIn: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="admin-label">Time Out</label>
+                  <input className="admin-input" type="time" value={form.timeOut} onChange={(e) => setForm((p) => ({ ...p, timeOut: e.target.value }))} />
+                </div>
+              </div>
+              <div className="admin-form-2col">
+                <div>
                   <label className="admin-label">Vehicle Type (optional)</label>
                   <input className="admin-input" value={form.vehicleType} onChange={(e) => setForm((p) => ({ ...p, vehicleType: e.target.value }))} />
                 </div>
@@ -309,4 +323,3 @@ const DispatcherDeliveryStaffPage = () => {
 };
 
 export default DispatcherDeliveryStaffPage;
-

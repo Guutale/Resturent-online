@@ -7,6 +7,7 @@ import {
   createOrder,
   deliveryAssignedOrders,
   deliveryUpdateOrderStatus,
+  confirmPayment,
   getOrderById,
   getOrderInvoice,
   kitchenOrders,
@@ -26,12 +27,14 @@ router.get("/assigned", authMiddleware, deliveryMiddleware, deliveryAssignedOrde
 router.get("/kitchen", authMiddleware, allowRoles(["chef", "admin"]), kitchenOrders);
 router.get("/:id", authMiddleware, getOrderById);
 router.get("/:id/invoice", authMiddleware, getOrderInvoice);
+router.patch("/:id/confirm-payment", authMiddleware, confirmPayment);
 router.patch("/:id/cancel", authMiddleware, cancelMyOrder);
 router.patch("/:id/kitchen-status", authMiddleware, allowRoles(["chef", "admin"]), updateKitchenStatus);
 router.patch("/:id/delivery-status", authMiddleware, allowRoles(["delivery", "dispatcher"]), deliveryUpdateOrderStatus);
 
 router.get("/", authMiddleware, allowRoles(["admin", "dispatcher"]), adminListOrders);
 router.patch("/:id/status", authMiddleware, adminMiddleware, adminUpdateOrderStatus);
-router.patch("/:id/assign-delivery", authMiddleware, allowRoles(["admin", "chef", "dispatcher"]), adminAssignDelivery);
+// Delivery assignment is handled by Dispatcher only (separation of duties).
+router.patch("/:id/assign-delivery", authMiddleware, allowRoles(["dispatcher"]), adminAssignDelivery);
 
 export default router;

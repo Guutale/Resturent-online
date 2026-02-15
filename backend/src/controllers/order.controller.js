@@ -16,6 +16,8 @@ const parsePagination = (query) => {
 const escapeRegex = (value = "") => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const ORDER_STATUSES = [
+  "awaiting_payment",
+  "pending_verification",
   "pending",
   "preparing",
   "ready",
@@ -93,7 +95,7 @@ const applyStatusSideEffects = (order, status) => {
 };
 
 export const createOrder = asyncHandler(async (req, res) => {
-  const { items = [], deliveryAddress, phone, paymentMethod = "COD", customerName, deliveryLocation } = req.body;
+  const { items = [], deliveryAddress, phone, paymentMethod = "COD", customerName, deliveryLocation, transactionReference } = req.body;
 
   if (!Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ message: "items are required" });
@@ -110,6 +112,16 @@ export const createOrder = asyncHandler(async (req, res) => {
   const allowedMethods = ["COD", "CARD", "EVCPLUS"];
   if (!allowedMethods.includes(paymentMethod)) {
     return res.status(400).json({ message: "Invalid paymentMethod" });
+  }
+
+  const requirePrepayment = String(process.env.REQUIRE_PREPAYMENT || "").toLowerCase() === "true";
+  if (requirePrepayment && paymentMethod === "COD") {
+    return res.status(400).json({ message: "Cash on Delivery is disabled. Please choose EVCPLUS or CARD." });
+  }
+
+  const normalizedTxRef = String(transactionReference || "").trim();
+  if (normalizedTxRef.length > 120) {
+    return res.status(400).json({ message: "transactionReference is too long" });
   }
 
   const productIds = items.map((i) => i.productId);
@@ -142,6 +154,7 @@ export const createOrder = asyncHandler(async (req, res) => {
       price: product.price,
       qty,
       imageUrl: product.imageUrl,
+      trackStock: typeof product.stockQty === "number",
     });
   }
 
@@ -187,14 +200,19 @@ export const createOrder = asyncHandler(async (req, res) => {
       }
     }
 
-    const deliveryFee = Number(process.env.DEFAULT_DELIVERY_FEE || 2);
+    const deliveryFeeEnv = Number(process.env.DEFAULT_DELIVERY_FEE);
+    const deliveryFee = Number.isFinite(deliveryFeeEnv) ? deliveryFeeEnv : 1;
     const total = subtotal + deliveryFee;
     const orderNumber = await generateOrderNumber();
 
     const userDoc = await User.findById(req.user.id).select("name").lean();
     const displayName = String(customerName || userDoc?.name || "Customer").trim() || "Customer";
 
-    const initialStatus = "pending";
+    const initialStatus = paymentMethod === "COD" ? "pending" : "awaiting_payment";
+
+    const paymentStatus = "unpaid";
+    const paymentProvider = paymentMethod === "EVCPLUS" ? "EVCPlus" : paymentMethod === "CARD" ? "Card" : undefined;
+    const paidAt = undefined;
 
     const safeDeliveryLocation = {};
     if (deliveryLocation && typeof deliveryLocation === "object") {
@@ -221,7 +239,7 @@ export const createOrder = asyncHandler(async (req, res) => {
       deliveryAddress,
       deliveryLocation: Object.keys(safeDeliveryLocation).length ? safeDeliveryLocation : undefined,
       paymentMethod,
-      paymentStatus: paymentMethod === "COD" ? "unpaid" : "paid",
+      paymentStatus,
       kitchenStatus: "pending",
       deliveryStatus: "unassigned",
       status: initialStatus,
@@ -242,27 +260,48 @@ export const createOrder = asyncHandler(async (req, res) => {
       amount: order.total,
       paymentMethod: order.paymentMethod,
       paymentStatus: order.paymentStatus,
-      paidAt: order.paymentStatus === "paid" ? new Date() : undefined,
+      provider: paymentProvider,
+      transactionReference: normalizedTxRef || undefined,
+      paidAt,
     });
 
-    await createNotification({
-      audience: "admin",
-      title: "New order",
-      message: `${order.orderNumber} placed ($${Number(order.total || 0).toFixed(2)}).`,
-      type: "order_created",
-      data: { orderId: order._id, orderNumber: order.orderNumber },
-    });
+    if (paymentMethod === "COD") {
+      await createNotification({
+        audience: "admin",
+        title: "New order",
+        message: `${order.orderNumber} placed ($${Number(order.total || 0).toFixed(2)}).`,
+        type: "order_created",
+        data: { orderId: order._id, orderNumber: order.orderNumber },
+      });
 
-    await createNotification({
-      audience: "user",
-      userId: req.user.id,
-      title: "Order confirmed",
-      message: `Your order ${order.orderNumber} has been placed successfully.`,
-      type: "order_confirmed",
-      data: { orderId: order._id, orderNumber: order.orderNumber },
-    });
+      await createNotification({
+        audience: "user",
+        userId: req.user.id,
+        title: "Order confirmed",
+        message: `Your order ${order.orderNumber} has been placed successfully.`,
+        type: "order_confirmed",
+        data: { orderId: order._id, orderNumber: order.orderNumber },
+      });
+    } else {
+      await createNotification({
+        audience: "user",
+        userId: req.user.id,
+        title: "Payment required",
+        message: `Please pay and confirm payment for order ${order.orderNumber}.`,
+        type: "payment_required",
+        data: { orderId: order._id, orderNumber: order.orderNumber, amount: order.total },
+      });
+    }
 
-    return res.status(201).json({ orderId: order._id, orderNumber: order.orderNumber, status: order.status });
+    return res.status(201).json({
+      orderId: order._id,
+      orderNumber: order.orderNumber,
+      status: order.status,
+      paymentStatus: order.paymentStatus,
+      subtotal: order.subtotal,
+      deliveryFee: order.deliveryFee,
+      total: order.total,
+    });
   } catch (err) {
     if (order?._id) {
       await Order.findByIdAndDelete(order._id).catch(() => {});
@@ -431,12 +470,97 @@ export const getOrderInvoice = asyncHandler(async (req, res) => {
   return res.status(200).send(html);
 });
 
+export const confirmPayment = asyncHandler(async (req, res) => {
+  const { transactionReference, proofImageUrl } = req.body || {};
+
+  const order = await Order.findById(req.params.id);
+  if (!order) return res.status(404).json({ message: "Order not found" });
+
+  if (String(order.userId) !== req.user.id) {
+    return res.status(403).json({ message: "Forbidden" });
+  }
+
+  if (order.status === "cancelled" || order.status === "failed" || order.status === "delivered") {
+    return res.status(400).json({ message: "Cannot confirm payment for a completed order" });
+  }
+
+  if (order.paymentMethod === "COD") {
+    return res.status(400).json({ message: "This order does not require online payment confirmation" });
+  }
+
+  if (order.paymentStatus === "paid") {
+    return res.status(400).json({ message: "Payment is already marked as paid" });
+  }
+
+  const txRef = String(transactionReference || "").trim();
+  const proof = String(proofImageUrl || "").trim();
+
+  if (!txRef && !proof) {
+    return res.status(400).json({ message: "Provide a transaction reference or upload a payment screenshot" });
+  }
+
+  if (txRef && txRef.length > 120) {
+    return res.status(400).json({ message: "transactionReference is too long" });
+  }
+
+  if (proof && proof.length > 1_500_000) {
+    // Support either a URL or a small base64 data URL.
+    // Hard cap to avoid huge payloads (see express.json limit).
+    return res.status(400).json({ message: "proofImageUrl is too long" });
+  }
+
+  const payment = await Payment.findOne({ orderId: order._id });
+  if (!payment) return res.status(404).json({ message: "Payment not found for this order" });
+
+  payment.paymentStatus = "pending";
+  if (txRef) payment.transactionReference = txRef;
+  if (proof) payment.proofImageUrl = proof;
+  if (!payment.provider) {
+    payment.provider = order.paymentMethod === "EVCPLUS" ? "EVCPlus" : order.paymentMethod === "CARD" ? "Card" : undefined;
+  }
+  await payment.save();
+
+  order.paymentStatus = "pending";
+  order.status = "pending_verification";
+  pushStatusHistory(order, "pending_verification", req.user, "payment_submitted");
+  await order.save();
+
+  await createNotification({
+    audience: "admin",
+    title: "Payment pending verification",
+    message: `${order.orderNumber} payment submitted for verification.`,
+    type: "payment_pending_verification",
+    data: { orderId: order._id, orderNumber: order.orderNumber, paymentId: payment._id, paymentMethod: order.paymentMethod },
+  });
+
+  await createNotification({
+    audience: "user",
+    userId: order.userId,
+    title: "Payment submitted",
+    message: `Your payment for order ${order.orderNumber} is pending verification.`,
+    type: "payment_submitted",
+    data: { orderId: order._id, orderNumber: order.orderNumber, paymentStatus: "pending" },
+  });
+
+  await writeAuditLog({
+    actor: req.user,
+    action: "user.payment_submit",
+    entityType: "Payment",
+    entityId: payment._id,
+    meta: { orderId: order._id, orderNumber: order.orderNumber, paymentMethod: order.paymentMethod },
+  });
+
+  return res.json({ order, payment });
+});
+
 export const adminListOrders = asyncHandler(async (req, res) => {
   const { status, search, userId, assignedDeliveryUserId, paymentStatus, paymentMethod, from, to } = req.query;
   const { page, limit, skip } = parsePagination(req.query);
 
   const filter = {};
   if (status && ORDER_STATUSES.includes(status)) filter.status = status;
+  // Keep the main Orders screen focused on fulfillment orders; payment verification happens in Payments.
+  if (!status) filter.status = { $nin: ["awaiting_payment", "pending_verification"] };
   if (userId) filter.userId = userId;
   if (assignedDeliveryUserId) filter.assignedDeliveryUserId = assignedDeliveryUserId;
   if (paymentStatus) filter.paymentStatus = paymentStatus;
@@ -480,6 +604,13 @@ export const adminUpdateOrderStatus = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: "Order not found" });
   }
 
+  if (order.paymentMethod !== "COD" && order.paymentStatus !== "paid") {
+    const allowedWhileUnpaid = ["awaiting_payment", "pending_verification", "cancelled"];
+    if (!allowedWhileUnpaid.includes(status)) {
+      return res.status(400).json({ message: "Cannot change order status until payment is approved" });
+    }
+  }
+
   const prev = order.status;
   order.status = status;
   pushStatusHistory(order, status, req.user, "admin_update");
@@ -518,14 +649,24 @@ export const cancelMyOrder = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: "Forbidden" });
   }
 
-  if (order.status !== "pending") {
-    return res.status(400).json({ message: "Only pending orders can be cancelled" });
+  const cancellable = ["awaiting_payment", "pending_verification", "pending"];
+  if (!cancellable.includes(order.status)) {
+    return res.status(400).json({ message: "Only pending / unpaid orders can be cancelled" });
   }
 
   order.status = "cancelled";
   order.cancelledAt = new Date();
   pushStatusHistory(order, "cancelled", req.user, "user_cancel");
   await order.save();
+
+  // If inventory was tracked for this order, restore stock on cancellation.
+  const orderItems = Array.isArray(order.items) ? order.items : [];
+  for (const i of orderItems) {
+    if (!i?.trackStock) continue;
+    const qty = Number(i.qty || 0);
+    if (!Number.isFinite(qty) || qty <= 0) continue;
+    await Product.updateOne({ _id: i.productId }, { $inc: { stockQty: qty } }).catch(() => {});
+  }
 
   await createNotification({
     audience: "admin",
@@ -556,6 +697,11 @@ export const cancelMyOrder = asyncHandler(async (req, res) => {
 });
 
 export const adminAssignDelivery = asyncHandler(async (req, res) => {
+  // Separation of duties: only Dispatcher can assign deliveries.
+  if (req.user.role !== "dispatcher") {
+    return res.status(403).json({ message: "Forbidden" });
+  }
+
   const { deliveryUserId } = req.body;
   if (!deliveryUserId) {
     return res.status(400).json({ message: "deliveryUserId is required" });
@@ -573,6 +719,10 @@ export const adminAssignDelivery = asyncHandler(async (req, res) => {
 
   if (order.status === "delivered" || order.status === "cancelled" || order.status === "failed") {
     return res.status(400).json({ message: "Cannot assign delivery for a completed order" });
+  }
+
+  if (order.paymentMethod !== "COD" && order.paymentStatus !== "paid") {
+    return res.status(400).json({ message: "Payment must be approved before delivery can be assigned" });
   }
 
   if (order.assignedDeliveryUserId) {
@@ -610,7 +760,7 @@ export const adminAssignDelivery = asyncHandler(async (req, res) => {
 
   await writeAuditLog({
     actor: req.user,
-    action: "admin.order_assign_delivery",
+    action: "dispatcher.order_assign_delivery",
     entityType: "Order",
     entityId: order._id,
     meta: { orderNumber: order.orderNumber, prev, next: { status: order.status, assignedDeliveryUserId: order.assignedDeliveryUserId } },
@@ -653,6 +803,10 @@ export const deliveryUpdateOrderStatus = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id);
   if (!order) {
     return res.status(404).json({ message: "Order not found" });
+  }
+
+  if (order.paymentMethod !== "COD" && order.paymentStatus !== "paid") {
+    return res.status(400).json({ message: "Payment must be approved before delivery status can be updated" });
   }
 
   const isDelivery = req.user.role === "delivery";
@@ -731,6 +885,10 @@ export const updateKitchenStatus = asyncHandler(async (req, res) => {
 
   const order = await Order.findById(req.params.id);
   if (!order) return res.status(404).json({ message: "Order not found" });
+
+  if (order.paymentMethod !== "COD" && order.paymentStatus !== "paid") {
+    return res.status(400).json({ message: "Payment must be approved before kitchen can start" });
+  }
 
   if (order.status === "delivered" || order.status === "cancelled" || order.status === "failed") {
     return res.status(400).json({ message: "Cannot update kitchen status for a completed order" });

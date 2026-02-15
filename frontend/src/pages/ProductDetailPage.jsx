@@ -36,11 +36,6 @@ const ProductDetailPage = () => {
         <p>
           <span className="status-dot" />
           {inStock ? "Available now" : "Out of stock"}
-          {typeof item.stockQty === "number" && (
-            <span className="muted" style={{ marginLeft: 10 }}>
-              Stock: {item.stockQty}
-            </span>
-          )}
         </p>
         <div className="row">
           <input

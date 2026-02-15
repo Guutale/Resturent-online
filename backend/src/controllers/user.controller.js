@@ -10,9 +10,15 @@ const parsePagination = (query) => {
   return { page, limit, skip: (page - 1) * limit };
 };
 
-const ROLES = ["user", "admin", "dispatcher", "delivery", "chef", "waiter"];
+const ROLES = ["user", "admin", "hr", "finance", "dispatcher", "delivery", "chef", "waiter"];
 const isRole = (value) => ROLES.includes(value);
-const isStaffRole = (value) => value === "dispatcher" || value === "delivery" || value === "chef" || value === "waiter";
+const isStaffRole = (value) =>
+  value === "hr"
+  || value === "finance"
+  || value === "dispatcher"
+  || value === "delivery"
+  || value === "chef"
+  || value === "waiter";
 
 const escapeRegex = (value = "") => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -22,6 +28,8 @@ const normalizePhone = (value) => {
   if (value === undefined || value === null) return "";
   return String(value).trim();
 };
+
+const isTimeHHmm = (value) => /^([01]\d|2[0-3]):[0-5]\d$/.test(String(value));
 
 const ensureStaffObject = (user) => {
   if (!user.staff) user.staff = {};
@@ -64,6 +72,32 @@ const applyStaffPatch = (user, staffPatch) => {
       throw err;
     }
     staff.startDate = d;
+  }
+
+  if (staffPatch.timeIn !== undefined) {
+    const v = String(staffPatch.timeIn || "").trim();
+    if (!v) staff.timeIn = undefined;
+    else {
+      if (!isTimeHHmm(v)) {
+        const err = new Error("timeIn must be in HH:mm format");
+        err.statusCode = 400;
+        throw err;
+      }
+      staff.timeIn = v;
+    }
+  }
+
+  if (staffPatch.timeOut !== undefined) {
+    const v = String(staffPatch.timeOut || "").trim();
+    if (!v) staff.timeOut = undefined;
+    else {
+      if (!isTimeHHmm(v)) {
+        const err = new Error("timeOut must be in HH:mm format");
+        err.statusCode = 400;
+        throw err;
+      }
+      staff.timeOut = v;
+    }
   }
 
   if (typeof staffPatch.vehicleType === "string") staff.vehicleType = staffPatch.vehicleType.trim();
@@ -318,6 +352,22 @@ export const adminCreateUser = asyncHandler(async (req, res) => {
         return res.status(400).json({ message: "startDate must be a valid date" });
       }
       doc.staff.startDate = d;
+    }
+
+    if (staff.timeIn !== undefined) {
+      const v = String(staff.timeIn || "").trim();
+      if (v) {
+        if (!isTimeHHmm(v)) return res.status(400).json({ message: "timeIn must be in HH:mm format" });
+        doc.staff.timeIn = v;
+      }
+    }
+
+    if (staff.timeOut !== undefined) {
+      const v = String(staff.timeOut || "").trim();
+      if (v) {
+        if (!isTimeHHmm(v)) return res.status(400).json({ message: "timeOut must be in HH:mm format" });
+        doc.staff.timeOut = v;
+      }
     }
   }
 

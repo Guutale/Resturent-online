@@ -486,6 +486,19 @@ textarea:focus {
   border-color: rgba(255, 164, 0, 0.35);
 }
 
+.badge.awaiting_payment {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #0f172a;
+}
+
+.badge.pending_verification {
+  background: rgba(255, 164, 0, 0.08);
+  border-style: dashed;
+  border-color: rgba(255, 164, 0, 0.55);
+  color: #b45309;
+}
+
 .badge.preparing {
   background: #fef3c7;
   border-color: #fde68a;
@@ -576,6 +589,18 @@ textarea:focus {
   color: #0f172a;
 }
 
+.badge.role-hr {
+  background: #ccfbf1;
+  border-color: #99f6e4;
+  color: #0f766e;
+}
+
+.badge.role-finance {
+  background: #ede9fe;
+  border-color: #ddd6fe;
+  color: #5b21b6;
+}
+
 .badge.pay-paid {
   background: #dcfce7;
   color: #166534;
@@ -586,6 +611,19 @@ textarea:focus {
   background: #fef3c7;
   border-color: #fde68a;
   color: #b45309;
+}
+
+.badge.pay-pending {
+  background: rgba(255, 164, 0, 0.08);
+  border-style: dashed;
+  border-color: rgba(255, 164, 0, 0.55);
+  color: #b45309;
+}
+
+.badge.pay-failed {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fecaca;
 }
 
 .badge.pay-refunded {
@@ -877,11 +915,9 @@ td a:hover {
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(14px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
@@ -1682,7 +1718,8 @@ td a:hover {
 .admin-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  /* Keep the page visible (no dark overlay) while still capturing outside-clicks. */
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1696,6 +1733,9 @@ td a:hover {
   border-radius: 16px;
   border: 1px solid #e5e7eb;
   padding: 1rem;
+  box-shadow: 0 26px 70px rgba(0, 0, 0, 0.18);
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
 }
 
 .admin-modal-lg {

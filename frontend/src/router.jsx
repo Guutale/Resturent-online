@@ -10,6 +10,10 @@ import ChefRoute from "./components/ChefRoute";
 import ChefLayout from "./components/ChefLayout";
 import DispatcherRoute from "./components/DispatcherRoute";
 import DispatcherLayout from "./components/DispatcherLayout";
+import HRRoute from "./components/HRRoute";
+import HRLayout from "./components/HRLayout";
+import FinanceRoute from "./components/FinanceRoute";
+import FinanceLayout from "./components/FinanceLayout";
 import HomePage from "./pages/HomePage";
 import MenuPage from "./pages/MenuPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
@@ -37,6 +41,13 @@ import DeliveryOrdersPage from "./pages/delivery/DeliveryOrdersPage";
 import ChefOrdersPage from "./pages/chef/ChefOrdersPage";
 import DispatcherOrdersPage from "./pages/dispatcher/DispatcherOrdersPage";
 import DispatcherDeliveryStaffPage from "./pages/dispatcher/DispatcherDeliveryStaffPage";
+import HRDashboardPage from "./pages/hr/HRDashboardPage";
+import HRStaffPage from "./pages/hr/HRStaffPage";
+import HRStaffDetailPage from "./pages/hr/HRStaffDetailPage";
+import HRAttendancePage from "./pages/hr/HRAttendancePage";
+import HRSalaryStructuresPage from "./pages/hr/HRSalaryStructuresPage";
+import FinanceDashboardPage from "./pages/finance/FinanceDashboardPage";
+import FinancePayrollPage from "./pages/finance/FinancePayrollPage";
 
 const AppRouter = () => (
   <Routes>
@@ -76,6 +87,19 @@ const AppRouter = () => (
     <Route path="/dispatcher" element={<DispatcherRoute><DispatcherLayout /></DispatcherRoute>}>
       <Route index element={<DispatcherOrdersPage />} />
       <Route path="delivery-staff" element={<DispatcherDeliveryStaffPage />} />
+    </Route>
+
+    <Route path="/hr" element={<HRRoute><HRLayout /></HRRoute>}>
+      <Route index element={<HRDashboardPage />} />
+      <Route path="staff" element={<HRStaffPage />} />
+      <Route path="staff/:id" element={<HRStaffDetailPage />} />
+      <Route path="attendance" element={<HRAttendancePage />} />
+      <Route path="salary-structures" element={<HRSalaryStructuresPage />} />
+    </Route>
+
+    <Route path="/finance" element={<FinanceRoute><FinanceLayout /></FinanceRoute>}>
+      <Route index element={<FinanceDashboardPage />} />
+      <Route path="payroll" element={<FinancePayrollPage />} />
     </Route>
 
     <Route path="/delivery" element={<DeliveryRoute><DeliveryLayout /></DeliveryRoute>}>

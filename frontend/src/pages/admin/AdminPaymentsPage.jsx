@@ -35,19 +35,41 @@ const AdminPaymentsPage = () => {
   const stats = useMemo(() => {
     const total = items.length;
     const paid = items.filter((p) => p.paymentStatus === "paid").length;
+    const pending = items.filter((p) => p.paymentStatus === "pending").length;
     const unpaid = items.filter((p) => p.paymentStatus === "unpaid").length;
+    const failed = items.filter((p) => p.paymentStatus === "failed").length;
     const refunded = items.filter((p) => p.paymentStatus === "refunded").length;
     const paidAmount = items
       .filter((p) => p.paymentStatus === "paid")
       .reduce((s, p) => s + Number(p.amount || 0), 0);
-    return { total, paid, unpaid, refunded, paidAmount };
+    return { total, paid, pending, unpaid, failed, refunded, paidAmount };
   }, [items]);
 
   const update = async (id, next) => {
     setError("");
     try {
-      await apiRequest(`/payments/${id}`, { method: "PATCH", body: JSON.stringify({ paymentStatus: next }) });
+      const body = { paymentStatus: next };
+      if (next === "failed") {
+        const reason = window.prompt("Failure reason (optional):") || "";
+        if (reason.trim()) body.failureReason = reason.trim();
+      }
+      await apiRequest(`/payments/${id}`, { method: "PATCH", body: JSON.stringify(body) });
       load();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const viewProof = async (id) => {
+    setError("");
+    try {
+      const d = await apiRequest(`/payments/${id}`);
+      const proof = d?.item?.proofImageUrl;
+      const tx = d?.item?.transactionReference;
+      if (!proof) {
+        throw new Error(tx ? "No screenshot uploaded (transaction ref exists)." : "No screenshot uploaded for this payment.");
+      }
+      window.open(proof, "_blank", "noopener,noreferrer");
     } catch (err) {
       setError(err.message);
     }
@@ -79,7 +101,9 @@ const AdminPaymentsPage = () => {
           <select className="admin-select" value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value)}>
             <option value="">All status</option>
             <option value="paid">Paid</option>
+            <option value="pending">Pending</option>
             <option value="unpaid">Unpaid</option>
+            <option value="failed">Failed</option>
             <option value="refunded">Refunded</option>
           </select>
           <input className="admin-input admin-date" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
@@ -110,17 +134,17 @@ const AdminPaymentsPage = () => {
           <div className="admin-stat-top">
             <div className="admin-stat-icon"><i className="fa-solid fa-hourglass-half" /></div>
             <div>
-              <div className="admin-stat-number">{stats.unpaid}</div>
-              <div className="admin-stat-label">Unpaid</div>
+              <div className="admin-stat-number">{stats.pending}</div>
+              <div className="admin-stat-label">Pending Verification</div>
             </div>
           </div>
         </div>
         <div className="admin-stat-card animate-fade-in delay-400">
           <div className="admin-stat-top">
-            <div className="admin-stat-icon"><i className="fa-solid fa-rotate-left" /></div>
+            <div className="admin-stat-icon"><i className="fa-solid fa-money-bill-wave" /></div>
             <div>
-              <div className="admin-stat-number">{stats.refunded}</div>
-              <div className="admin-stat-label">Refunded</div>
+              <div className="admin-stat-number">{stats.unpaid}</div>
+              <div className="admin-stat-label">Unpaid</div>
             </div>
           </div>
         </div>
@@ -137,6 +161,8 @@ const AdminPaymentsPage = () => {
                 <th>Method</th>
                 <th>Status</th>
                 <th>Amount</th>
+                <th>Tx Ref</th>
+                <th>Proof</th>
                 <th>Date</th>
                 <th>Update</th>
               </tr>
@@ -150,11 +176,19 @@ const AdminPaymentsPage = () => {
                   <td style={{ fontWeight: 900 }}>{p.paymentMethod}</td>
                   <td><span className={statusClass(p.paymentStatus)}>{p.paymentStatus}</span></td>
                   <td>${Number(p.amount || 0).toFixed(2)}</td>
+                  <td className="admin-muted" style={{ fontWeight: 800 }}>{p.transactionReference || "-"}</td>
+                  <td>
+                    <button type="button" className="admin-btn-link" onClick={() => viewProof(p._id)}>
+                      View
+                    </button>
+                  </td>
                   <td>{new Date(p.createdAt).toLocaleDateString()}</td>
                   <td>
                     <select className="admin-select" value={p.paymentStatus} onChange={(e) => update(p._id, e.target.value)}>
                       <option value="unpaid">unpaid</option>
+                      <option value="pending">pending</option>
                       <option value="paid">paid</option>
+                      <option value="failed">failed</option>
                       <option value="refunded">refunded</option>
                     </select>
                   </td>
@@ -162,7 +196,7 @@ const AdminPaymentsPage = () => {
               ))}
               {items.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="admin-empty-cell">No payments found.</td>
+                  <td colSpan={8} className="admin-empty-cell">No payments found.</td>
                 </tr>
               )}
             </tbody>
@@ -171,10 +205,12 @@ const AdminPaymentsPage = () => {
         <div className="admin-muted" style={{ marginTop: 10 }}>
           Paid amount (loaded): <strong>${stats.paidAmount.toFixed(2)}</strong>
         </div>
+        <div className="admin-muted" style={{ marginTop: 6 }}>
+          Failed: <strong>{stats.failed}</strong> · Refunded: <strong>{stats.refunded}</strong>
+        </div>
       </div>
     </div>
   );
 };
 
 export default AdminPaymentsPage;
-

@@ -85,6 +85,8 @@ const AdminUsersPage = () => {
             <option value="">All roles</option>
             <option value="user">User</option>
             <option value="admin">Admin</option>
+            <option value="hr">HR</option>
+            <option value="finance">Finance</option>
             <option value="dispatcher">Dispatcher</option>
             <option value="chef">Chef</option>
             <option value="waiter">Waiter</option>
@@ -175,6 +177,8 @@ const AdminUsersPage = () => {
                     >
                       <option value="user">User</option>
                       <option value="admin">Admin</option>
+                      <option value="hr">HR</option>
+                      <option value="finance">Finance</option>
                       <option value="dispatcher">Dispatcher</option>
                       <option value="chef">Chef</option>
                       <option value="waiter">Waiter</option>

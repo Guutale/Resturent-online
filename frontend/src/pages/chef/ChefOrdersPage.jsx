@@ -12,8 +12,6 @@ const deriveKitchenStatus = (o) => {
 
 const ChefOrdersPage = () => {
   const [items, setItems] = useState([]);
-  const [deliveryStaff, setDeliveryStaff] = useState([]);
-  const [assignTo, setAssignTo] = useState({});
   const [error, setError] = useState("");
 
   const load = () =>
@@ -21,14 +19,8 @@ const ChefOrdersPage = () => {
       .then((d) => setItems(d.items || []))
       .catch(() => setItems([]));
 
-  const loadDelivery = () =>
-    apiRequest("/delivery-staff?availabilityStatus=available&isBlocked=false&limit=200")
-      .then((d) => setDeliveryStaff(d.items || []))
-      .catch(() => setDeliveryStaff([]));
-
   useEffect(() => {
     load();
-    loadDelivery();
   }, []);
 
   const updateKitchen = async (id, kitchenStatus) => {
@@ -39,27 +31,6 @@ const ChefOrdersPage = () => {
         body: JSON.stringify({ kitchenStatus }),
       });
       load();
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  const assignDelivery = async (orderId) => {
-    setError("");
-    const deliveryUserId = assignTo[orderId];
-    if (!deliveryUserId) return;
-    try {
-      await apiRequest(`/orders/${orderId}/assign-delivery`, {
-        method: "PATCH",
-        body: JSON.stringify({ deliveryUserId }),
-      });
-      setAssignTo((p) => {
-        const next = { ...p };
-        delete next[orderId];
-        return next;
-      });
-      load();
-      loadDelivery();
     } catch (err) {
       setError(err.message);
     }
@@ -77,10 +48,10 @@ const ChefOrdersPage = () => {
       <div className="admin-page-head">
         <div>
           <h1 className="admin-title">Kitchen Dashboard</h1>
-          <p className="admin-subtitle">Update kitchen workflow: Pending → Cooking → Ready.</p>
+          <p className="admin-subtitle">Update kitchen workflow: Pending -&gt; Cooking -&gt; Ready.</p>
         </div>
         <div className="admin-actions">
-          <button type="button" className="admin-btn-secondary" onClick={() => { load(); loadDelivery(); }}>
+          <button type="button" className="admin-btn-secondary" onClick={() => { load(); }}>
             Refresh
           </button>
         </div>
@@ -164,26 +135,9 @@ const ChefOrdersPage = () => {
                           </button>
                         )}
                         {kitchen === "ready" && !o.assignedDeliveryUserId && (
-                          <>
-                            <select
-                              className="admin-select"
-                              value={assignTo[o._id] || ""}
-                              onChange={(e) => setAssignTo((p) => ({ ...p, [o._id]: e.target.value }))}
-                            >
-                              <option value="">Select delivery</option>
-                              {deliveryStaff.map((u) => (
-                                <option key={u._id} value={u._id}>{u.name} ({u.phone || u.email})</option>
-                              ))}
-                            </select>
-                            <button
-                              type="button"
-                              className="admin-btn-primary"
-                              onClick={() => assignDelivery(o._id)}
-                              disabled={!assignTo[o._id]}
-                            >
-                              Assign
-                            </button>
-                          </>
+                          <span className="admin-muted" style={{ fontWeight: 800 }}>
+                            Ready (waiting dispatcher)
+                          </span>
                         )}
                         {kitchen === "ready" && o.assignedDeliveryUserId && (
                           <span className="admin-muted" style={{ fontWeight: 800 }}>
@@ -209,4 +163,3 @@ const ChefOrdersPage = () => {
 };
 
 export default ChefOrdersPage;
-

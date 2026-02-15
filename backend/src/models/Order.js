@@ -7,6 +7,8 @@ const OrderItemSchema = new mongoose.Schema(
     price: { type: Number, required: true, min: 0 },
     qty: { type: Number, required: true, min: 1 },
     imageUrl: { type: String },
+    // Whether this item was inventory-tracked at order time (used for safe stock restore on cancel).
+    trackStock: { type: Boolean, default: false },
   },
   { _id: false }
 );
@@ -86,13 +88,25 @@ const OrderSchema = new mongoose.Schema(
     },
     paymentStatus: {
       type: String,
-      enum: ["unpaid", "paid", "refunded"],
+      enum: ["unpaid", "pending", "paid", "failed", "refunded"],
       default: "unpaid",
       index: true,
     },
     status: {
       type: String,
-      enum: ["pending", "preparing", "ready", "assigned", "out_for_delivery", "on_the_way", "delivered", "failed", "cancelled"],
+      enum: [
+        "awaiting_payment",
+        "pending_verification",
+        "pending",
+        "preparing",
+        "ready",
+        "assigned",
+        "out_for_delivery",
+        "on_the_way",
+        "delivered",
+        "failed",
+        "cancelled",
+      ],
       default: "pending",
       index: true,
     },

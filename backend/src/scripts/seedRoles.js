@@ -71,6 +71,34 @@ const run = async () => {
       phone: process.env.ADMIN_PHONE || "0610000001",
     },
     {
+      role: "hr",
+      name: process.env.HR_NAME || "HR",
+      email: process.env.HR_EMAIL || "hr@mail.com",
+      password: process.env.HR_PASSWORD || "hr12345",
+      phone: process.env.HR_PHONE || "0610000007",
+      staff: {
+        address: "Mogadishu",
+        experience: "2 years",
+        monthlySalary: 350,
+        salaryPayDay: 25,
+        startDate,
+      },
+    },
+    {
+      role: "finance",
+      name: process.env.FINANCE_NAME || "Finance",
+      email: process.env.FINANCE_EMAIL || "finance@mail.com",
+      password: process.env.FINANCE_PASSWORD || "finance123",
+      phone: process.env.FINANCE_PHONE || "0610000008",
+      staff: {
+        address: "Mogadishu",
+        experience: "2 years",
+        monthlySalary: 380,
+        salaryPayDay: 25,
+        startDate,
+      },
+    },
+    {
       role: "dispatcher",
       name: process.env.DISPATCHER_NAME || "Dispatcher",
       email: process.env.DISPATCHER_EMAIL || "dispatcher@mail.com",
@@ -161,4 +189,3 @@ run().catch(async (err) => {
   } catch {}
   process.exit(1);
 });
-

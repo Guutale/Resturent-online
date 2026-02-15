@@ -24,6 +24,8 @@ const AppLayout = () => {
             {user && <NavLink to="/orders">Orders</NavLink>}
             {user && <NavLink to="/notifications">Notifications</NavLink>}
             {user?.role === "admin" && <NavLink to="/admin">Admin</NavLink>}
+            {user?.role === "hr" && <NavLink to="/hr">HR</NavLink>}
+            {user?.role === "finance" && <NavLink to="/finance">Finance</NavLink>}
             {user?.role === "dispatcher" && <NavLink to="/dispatcher">Dispatcher</NavLink>}
             {user?.role === "chef" && <NavLink to="/chef">Chef</NavLink>}
             {user?.role === "delivery" && <NavLink to="/delivery">Delivery</NavLink>}

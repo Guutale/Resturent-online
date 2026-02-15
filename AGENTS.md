@@ -3,7 +3,7 @@
 This repo is a simple restaurant ordering system:
 - Frontend: Vite + React (`frontend/`)
 - Backend: Express + MongoDB (Mongoose) (`backend/`)
-- Roles: `user`, `admin`, `delivery` (guest is unauthenticated)
+- Roles: `user`, `admin`, `hr`, `finance`, `dispatcher`, `chef`, `waiter`, `delivery` (guest is unauthenticated)
 
 ## Quickstart (Local Dev)
 
@@ -31,7 +31,7 @@ Backend env (`backend/.env`):
 - `JWT_SECRET`
 - `JWT_EXPIRES_IN`
 - `DEFAULT_DELIVERY_FEE`
-- Optional admin seed vars: `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME`
+- Optional seed vars: see `backend/.env.example` (includes `ADMIN_EMAIL`, `CHEF_EMAIL`, etc.)
 
 Frontend env (`frontend/.env`):
 - `VITE_API_BASE_URL` (must point at backend `/api`)
@@ -49,6 +49,7 @@ Backend:
 - Auth: JWT Bearer token via `backend/src/middleware/auth.js`
 - Admin-only: `backend/src/middleware/admin.js`
 - Delivery-only: `backend/src/middleware/delivery.js`
+- Role guard: `backend/src/middleware/roles.js` (`allowRoles([...])`)
 - Error shape: JSON `{ "message": "..." }` (see `backend/src/middleware/error.js`)
 
 Frontend:
@@ -69,6 +70,7 @@ See:
 
 From `backend/`:
 - `npm run seed:admin`
+- `npm run seed:roles` (admin/dispatcher/chef/waiter/delivery/user)
 
 Defaults (override via `ADMIN_EMAIL` / `ADMIN_PASSWORD`):
 - Email: `admin@mail.com`

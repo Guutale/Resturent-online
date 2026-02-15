@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
 
-const deliveryFee = 2;
+const deliveryFee = 1;
 
 const CartPage = () => {
   const { items, changeQty, removeItem, subtotal } = useCart();

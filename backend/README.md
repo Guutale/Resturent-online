@@ -14,6 +14,8 @@ From `backend/` run:
 
 Default credentials (override via `backend/.env`):
 - Admin: `admin@mail.com` / `admin123`
+- HR: `hr@mail.com` / `hr12345`
+- Finance: `finance@mail.com` / `finance123`
 - Dispatcher: `dispatcher@mail.com` / `dispatcher123`
 - Chef: `chef@mail.com` / `chef123`
 - Waiter: `waiter@mail.com` / `waiter123`
@@ -62,17 +64,20 @@ Default credentials (override via `backend/.env`):
 - `GET /orders/kitchen` (chef/admin)
 - `GET /orders/:id` (user/admin/dispatcher/delivery; chef can read kitchen orders)
 - `GET /orders/:id/invoice` (user/admin/dispatcher/chef/delivery)
+- `PATCH /orders/:id/confirm-payment` (user, EVC/CARD) body: `{ "transactionReference": "...", "proofImageUrl": "data:image/... or https://..." }`
 - `PATCH /orders/:id/cancel` (user)
 - `PATCH /orders/:id/kitchen-status` (chef/admin)
 - `GET /orders` (admin/dispatcher)
 - `PATCH /orders/:id/status` (admin)
-- `PATCH /orders/:id/assign-delivery` (admin/chef/dispatcher)
+- `PATCH /orders/:id/assign-delivery` (dispatcher)
 - `PATCH /orders/:id/delivery-status` (delivery/dispatcher)
 
 ### Payments
 - `GET /payments` (admin)
 - `GET /payments/:id` (admin)
 - `PATCH /payments/:id` (admin)
+
+Payment statuses: `unpaid` → `pending` → `paid` (or `failed` / `refunded`).
 
 ### Notifications
 - `GET /notifications/my` (user)
@@ -82,17 +87,37 @@ Default credentials (override via `backend/.env`):
 - `PATCH /notifications/:id/read` (user/admin)
 
 ### Payroll
-- `GET /payroll/payments` (admin)
-- `POST /payroll/payments` (admin)
-- `PATCH /payroll/payments/:id` (admin)
-- `GET /payroll/staff/:staffId/payments` (admin)
-- `GET /payroll/report?month=YYYY-MM&role=` (admin)
+- `GET /payroll/payments` (admin/finance)
+- `POST /payroll/payments` (admin/finance)
+- `PATCH /payroll/payments/:id` (admin/finance)
+- `GET /payroll/staff/:staffId/payments` (admin/finance/hr read-only)
+- `GET /payroll/report?month=YYYY-MM&role=` (admin/finance)
 
 ### Delivery Staff
-- `GET /delivery-staff` (admin/dispatcher/chef)
+- `GET /delivery-staff` (admin/dispatcher)
 - `POST /delivery-staff` (admin/dispatcher)
 - `PATCH /delivery-staff/:id` (admin/dispatcher)
 - `GET /delivery-staff/:id/performance` (admin/dispatcher)
+
+### Staff (HR)
+- `GET /staff` (admin/hr)
+- `POST /staff` (admin/hr)
+- `GET /staff/:id` (admin/hr)
+- `PATCH /staff/:id` (admin/hr)
+- `DELETE /staff/:id` (admin/hr)
+
+### Salary Structures (HR)
+- `GET /salary-structures` (admin/hr)
+- `GET /salary-structures/current/:staffUserId` (admin/hr)
+- `POST /salary-structures` (admin/hr)
+- `PATCH /salary-structures/:id` (admin/hr)
+
+### Attendance (HR)
+- `GET /attendance?staffUserId=` (admin/hr)
+- `POST /attendance` (admin/hr)
+
+### Finance
+- `GET /finance/revenue` (admin/finance)
 
 ## Frontend Route Skeleton
 `frontend/src/router.jsx` includes all user/admin pages from your UI flow.

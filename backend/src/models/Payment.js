@@ -8,7 +8,11 @@ const PaymentSchema = new mongoose.Schema(
     amount: { type: Number, required: true, min: 0 },
     currency: { type: String, default: "USD", trim: true },
     paymentMethod: { type: String, enum: ["COD", "CARD", "EVCPLUS"], required: true, index: true },
-    paymentStatus: { type: String, enum: ["unpaid", "paid", "refunded"], required: true, index: true },
+    provider: { type: String, trim: true },
+    paymentStatus: { type: String, enum: ["unpaid", "pending", "paid", "failed", "refunded"], required: true, index: true },
+    transactionReference: { type: String, trim: true, index: true },
+    proofImageUrl: { type: String, trim: true },
+    failureReason: { type: String, trim: true },
     paidAt: { type: Date },
     refundedAt: { type: Date },
   },
@@ -16,4 +20,3 @@ const PaymentSchema = new mongoose.Schema(
 );
 
 export default mongoose.model("Payment", PaymentSchema);
-

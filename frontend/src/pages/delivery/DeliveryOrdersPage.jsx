@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { apiRequest } from "../../lib/api";
+import { openInvoice } from "../../lib/invoice";
 
 const statusClass = (status) => `badge ${status}`;
-
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api").replace(/\/+$/, "");
 
 const DeliveryOrdersPage = () => {
   const [items, setItems] = useState([]);
@@ -97,9 +96,20 @@ const DeliveryOrdersPage = () => {
                           </button>
                         </>
                       )}
-                      <a className="admin-btn-link" href={`${API_BASE}/orders/${o._id}/invoice`} target="_blank" rel="noreferrer">
+                      <button
+                        type="button"
+                        className="admin-btn-link"
+                        onClick={async () => {
+                          setError("");
+                          try {
+                            await openInvoice(o._id);
+                          } catch (err) {
+                            setError(err.message);
+                          }
+                        }}
+                      >
                         <i className="fa-solid fa-file-invoice" /> Invoice
-                      </a>
+                      </button>
                     </div>
                   </td>
                 </tr>

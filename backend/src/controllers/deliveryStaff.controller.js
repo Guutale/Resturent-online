@@ -15,6 +15,7 @@ const escapeRegex = (value = "") => String(value).replace(/[.*+?^${}()|[\]\\]/g,
 
 const normalizeEmail = (value) => String(value || "").trim().toLowerCase();
 const normalizePhone = (value) => (value === undefined || value === null ? "" : String(value).trim());
+const isTimeHHmm = (value) => /^([01]\d|2[0-3]):[0-5]\d$/.test(String(value));
 
 const allowedAvailability = ["available", "busy", "offline"];
 
@@ -99,6 +100,20 @@ export const createDeliveryStaff = asyncHandler(async (req, res) => {
       if (Number.isNaN(d.getTime())) return res.status(400).json({ message: "startDate must be a valid date" });
       doc.staff.startDate = d;
     }
+    if (staff.timeIn !== undefined) {
+      const v = String(staff.timeIn || "").trim();
+      if (v) {
+        if (!isTimeHHmm(v)) return res.status(400).json({ message: "timeIn must be in HH:mm format" });
+        doc.staff.timeIn = v;
+      }
+    }
+    if (staff.timeOut !== undefined) {
+      const v = String(staff.timeOut || "").trim();
+      if (v) {
+        if (!isTimeHHmm(v)) return res.status(400).json({ message: "timeOut must be in HH:mm format" });
+        doc.staff.timeOut = v;
+      }
+    }
   }
 
   const user = await User.create(doc);
@@ -169,6 +184,22 @@ export const updateDeliveryStaff = asyncHandler(async (req, res) => {
       if (Number.isNaN(d.getTime())) return res.status(400).json({ message: "startDate must be a valid date" });
       user.staff.startDate = d;
     }
+    if (staff.timeIn !== undefined) {
+      const v = String(staff.timeIn || "").trim();
+      if (!v) user.staff.timeIn = undefined;
+      else {
+        if (!isTimeHHmm(v)) return res.status(400).json({ message: "timeIn must be in HH:mm format" });
+        user.staff.timeIn = v;
+      }
+    }
+    if (staff.timeOut !== undefined) {
+      const v = String(staff.timeOut || "").trim();
+      if (!v) user.staff.timeOut = undefined;
+      else {
+        if (!isTimeHHmm(v)) return res.status(400).json({ message: "timeOut must be in HH:mm format" });
+        user.staff.timeOut = v;
+      }
+    }
   }
 
   await user.save();
@@ -229,4 +260,3 @@ export const deliveryStaffPerformance = asyncHandler(async (req, res) => {
     },
   });
 });
-
