@@ -1,5 +1,5 @@
-import React from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import React, { useEffect, useMemo, useState } from "react";
+import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 
@@ -14,10 +14,20 @@ const rolePortalMap = {
 
 const navLinkClassName = ({ isActive }) => (isActive ? "nav-link active" : "nav-link");
 
+const siteLinks = [
+  { label: "Home", type: "route", to: "/" },
+  { label: "Menu", type: "route", to: "/menu" },
+  { label: "Offers", type: "hash", to: "/#offers", hash: "#offers" },
+  { label: "About", type: "hash", to: "/#about", hash: "#about" },
+  { label: "Contact", type: "hash", to: "/#contact", hash: "#contact" },
+];
+
 const AppLayout = () => {
   const { user, logout } = useAuth();
   const { items } = useCart();
-  const count = items.reduce((s, x) => s + x.qty, 0);
+  const location = useLocation();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const count = items.reduce((sum, item) => sum + item.qty, 0);
   const portal = user ? rolePortalMap[user.role] : null;
   const userInitials = user?.name
     ? user.name
@@ -27,47 +37,59 @@ const AppLayout = () => {
         .slice(0, 2)
         .toUpperCase()
     : "GU";
-  const quickLinks = [
-    { to: "/", label: "Home" },
-    { to: "/menu", label: "Menu" },
-    ...(user ? [{ to: "/orders", label: "Orders" }] : []),
-  ];
+
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname, location.hash]);
+
+  useEffect(() => {
+    if (!location.hash) return;
+
+    const target = document.querySelector(location.hash);
+    if (!target) return;
+
+    window.setTimeout(() => {
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
+  }, [location.hash, location.pathname]);
+
+  const mobileLinks = useMemo(() => siteLinks, []);
 
   return (
     <div className="app-shell">
       <div className="site-glow site-glow-left" />
       <div className="site-glow site-glow-right" />
 
-      <header className="topbar">
-        <div className="announcement-bar">
-          <div className="container announcement-inner">
-            <span>Open daily 8:00 AM - 11:00 PM</span>
-            <div className="announcement-meta">
-              <span><i className="fa-solid fa-bolt" /> Average delivery in 30 minutes</span>
-              <span><i className="fa-solid fa-shield-heart" /> Smooth checkout and live order tracking</span>
-            </div>
-          </div>
-        </div>
-
+      <header className="topbar hero-topbar">
         <div className="container topbar-shell">
-          <div className="topbar-inner">
-            <NavLink className="logo" to="/">
+          <div className="topbar-inner hero-nav-shell">
+            <Link className="logo" to="/">
               <span className="logo-mark">FP</span>
               <span className="logo-copy">
                 <span className="logo-name">Flavor Point</span>
-                <span className="logo-kicker">Curated kitchen delivery</span>
+                <span className="logo-kicker">Cinematic meal promotions</span>
               </span>
-            </NavLink>
+            </Link>
 
-            <nav className="nav" aria-label="Primary">
-              <NavLink className={navLinkClassName} to="/">Home</NavLink>
-              <NavLink className={navLinkClassName} to="/menu">Menu</NavLink>
-              {user && <NavLink className={navLinkClassName} to="/orders">Orders</NavLink>}
-              {user && <NavLink className={navLinkClassName} to="/notifications">Notifications</NavLink>}
-              <a className="nav-link" href="#contact">Contact</a>
+            <nav className="nav hero-nav" aria-label="Primary">
+              {siteLinks.map((link) => (
+                link.type === "route" ? (
+                  <NavLink key={link.label} className={navLinkClassName} to={link.to} end={link.to === "/"}>
+                    {link.label}
+                  </NavLink>
+                ) : (
+                  <Link
+                    key={link.label}
+                    className={`nav-link ${location.pathname === "/" && location.hash === link.hash ? "active" : ""}`}
+                    to={link.to}
+                  >
+                    {link.label}
+                  </Link>
+                )
+              ))}
             </nav>
 
-            <div className="header-actions">
+            <div className="header-actions hero-header-actions">
               {portal && (
                 <NavLink className="utility-chip" to={portal.to}>
                   <i className="fa-solid fa-briefcase" />
@@ -95,23 +117,68 @@ const AppLayout = () => {
                   <button className="logout-button" onClick={logout}>Logout</button>
                 </>
               ) : (
-                <>
-                  <NavLink className="btn-outline compact-btn" to="/register">Create account</NavLink>
-                  <NavLink to="/login" className="btn compact-btn">Sign in</NavLink>
-                </>
+                <NavLink to="/login" className="btn hero-login-btn">
+                  <i className="fa-solid fa-user" />
+                  Login
+                </NavLink>
               )}
+
+              <button
+                type="button"
+                className={`menu-toggle ${mobileOpen ? "is-open" : ""}`}
+                onClick={() => setMobileOpen((current) => !current)}
+                aria-label={mobileOpen ? "Close menu" : "Open menu"}
+                aria-expanded={mobileOpen}
+              >
+                <span />
+                <span />
+                <span />
+              </button>
             </div>
           </div>
 
-          <nav className="mobile-shortcuts" aria-label="Quick links">
-            {quickLinks.map((link) => (
-              <NavLink key={link.to} className={navLinkClassName} to={link.to}>
-                {link.label}
-              </NavLink>
-            ))}
-            {user && <NavLink className={navLinkClassName} to="/notifications">Notifications</NavLink>}
-            <a className="nav-link" href="#contact">Contact</a>
-          </nav>
+          <div className={`mobile-drawer ${mobileOpen ? "is-open" : ""}`}>
+            <nav className="mobile-drawer-nav" aria-label="Mobile navigation">
+              {mobileLinks.map((link) => (
+                link.type === "route" ? (
+                  <NavLink
+                    key={link.label}
+                    className={navLinkClassName}
+                    to={link.to}
+                    end={link.to === "/"}
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    {link.label}
+                  </NavLink>
+                ) : (
+                  <Link
+                    key={link.label}
+                    className="nav-link"
+                    to={link.to}
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    {link.label}
+                  </Link>
+                )
+              ))}
+            </nav>
+
+            <div className="mobile-drawer-actions">
+              {!user && (
+                <Link className="btn" to="/register" onClick={() => setMobileOpen(false)}>
+                  Create account
+                </Link>
+              )}
+              {user && (
+                <Link className="btn-outline" to="/notifications" onClick={() => setMobileOpen(false)}>
+                  Notifications
+                </Link>
+              )}
+              <Link className="btn-outline" to="/menu" onClick={() => setMobileOpen(false)}>
+                Browse menu
+              </Link>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -124,7 +191,7 @@ const AppLayout = () => {
           <section className="footer-cta">
             <div>
               <p className="section-kicker">Plan tonight's meal with less friction</p>
-              <h2>Browse fast, order clearly, and keep the whole experience feeling premium.</h2>
+              <h2>Promote the right discount, guide the next click, and keep the full journey premium.</h2>
             </div>
             <div className="footer-cta-actions">
               <NavLink className="btn" to="/menu">Browse menu</NavLink>
@@ -135,7 +202,7 @@ const AppLayout = () => {
           <div className="footer-grid">
             <div className="footer-brand">
               <h3>Flavor<span>Point</span></h3>
-              <p>Modern restaurant ordering with stronger hierarchy, cleaner presentation, and a smoother path from menu to checkout.</p>
+              <p>Dark cinematic promotions, admin-controlled banner deals, and a cleaner restaurant funnel from hero to checkout.</p>
               <div className="footer-social">
                 <a href="#" aria-label="Facebook"><i className="fa-brands fa-facebook-f" /></a>
                 <a href="#" aria-label="Instagram"><i className="fa-brands fa-instagram" /></a>
@@ -145,14 +212,14 @@ const AppLayout = () => {
 
             <div className="footer-col">
               <h4>Explore</h4>
-              <a href="/">Home</a>
-              <a href="/menu">Menu</a>
-              <a href="/cart">Cart</a>
+              <Link to="/">Home</Link>
+              <Link to="/menu">Menu</Link>
+              <Link to="/#offers">Offers</Link>
             </div>
 
             <div className="footer-col">
               <h4>Info</h4>
-              <a href="#">About Us</a>
+              <Link to="/#about">About</Link>
               <a href="#">Privacy Policy</a>
               <a href="#">Terms</a>
               <a href="#">Support</a>
@@ -168,8 +235,8 @@ const AppLayout = () => {
           <div className="footer-bottom">
             <span>Copyright 2026 FlavorPoint. All rights reserved.</span>
             <div className="footer-bottom-links">
-              <a href="/">Home</a>
-              <a href="/menu">Menu</a>
+              <Link to="/">Home</Link>
+              <Link to="/menu">Menu</Link>
               <a href="mailto:hello@flavorpoint.com">Support</a>
             </div>
           </div>

@@ -28,6 +28,10 @@ const AdminLayout = () => {
             <i className="fa-solid fa-chart-line" />
             Dashboard
           </NavLink>
+          <NavLink to="/admin/hero-slides" className={navClass}>
+            <i className="fa-solid fa-images" />
+            Hero Banners
+          </NavLink>
           <NavLink to="/admin/categories" className={navClass}>
             <i className="fa-solid fa-layer-group" />
             Categories

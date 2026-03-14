@@ -1645,6 +1645,121 @@ td a:hover {
   margin-top: 0.8rem;
 }
 
+.admin-banner-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+@media (min-width: 900px) {
+  .admin-banner-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.admin-banner-card {
+  border-radius: 20px;
+  border: 1px solid #eef2f7;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02);
+}
+
+.admin-banner-media {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  background: #111827;
+}
+
+.admin-banner-media img,
+.admin-banner-mini-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.admin-banner-overlay,
+.admin-banner-mini-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(11, 18, 32, 0.18), rgba(11, 18, 32, 0.82));
+}
+
+.admin-banner-preview {
+  position: absolute;
+  inset: 0;
+  padding: 1rem;
+  display: grid;
+  align-content: end;
+  gap: 0.65rem;
+  color: #fff;
+}
+
+.admin-banner-preview h3,
+.admin-banner-mini-content h4 {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 950;
+}
+
+.admin-banner-badge-row,
+.admin-banner-status-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.admin-banner-preview p,
+.admin-banner-mini-content p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.92rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.admin-banner-body {
+  padding: 1rem;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.admin-banner-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.admin-banner-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.admin-banner-mini-preview {
+  position: relative;
+  min-height: 320px;
+  border-radius: 20px;
+  overflow: hidden;
+  margin-top: 0.9rem;
+  background: #111827;
+}
+
+.admin-banner-mini-content {
+  position: absolute;
+  inset: auto 0 0 0;
+  padding: 1rem;
+  display: grid;
+  gap: 0.55rem;
+  color: #fff;
+}
+
 .admin-empty-state {
   grid-column: 1 / -1;
   text-align: center;
@@ -1669,6 +1784,15 @@ td a:hover {
 .admin-empty-title {
   font-weight: 950;
   margin-bottom: 0.25rem;
+}
+
+.admin-form-alert {
+  margin-bottom: 0.9rem;
+}
+
+.admin-form-col .admin-select.admin-input {
+  width: 100%;
+  min-width: 0;
 }
 
 .admin-note-list {

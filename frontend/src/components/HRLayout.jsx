@@ -28,6 +28,10 @@ const HRLayout = () => {
             <i className="fa-solid fa-people-group" />
             Dashboard
           </NavLink>
+          <NavLink to="/hr/hero-slides" className={navClass}>
+            <i className="fa-solid fa-images" />
+            Hero Banners
+          </NavLink>
           <NavLink to="/hr/staff" className={navClass}>
             <i className="fa-solid fa-user-gear" />
             Staff
@@ -67,4 +71,3 @@ const HRLayout = () => {
 };
 
 export default HRLayout;
-
