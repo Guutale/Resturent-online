@@ -2728,6 +2728,456 @@ td a:hover {
   text-align: center;
 }
 
+.homepage-section-shell {
+  gap: 1.15rem;
+}
+
+.homepage-section-head {
+  align-items: flex-end;
+}
+
+.homepage-section-subtitle {
+  margin: 0;
+  max-width: 42ch;
+  color: var(--muted);
+}
+
+.homepage-category-grid,
+.home-featured-grid,
+.special-offer-grid,
+.why-choose-grid,
+.best-seller-grid,
+.testimonial-grid,
+.contact-detail-grid,
+.homepage-loading-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.homepage-category-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.homepage-category-card,
+.homepage-food-card,
+.why-choose-card,
+.testimonial-card,
+.contact-detail-card,
+.homepage-loading-card {
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: var(--shadow);
+}
+
+.homepage-category-card {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem;
+  transition: transform 0.24s ease, box-shadow 0.24s ease;
+}
+
+.homepage-category-card:hover,
+.homepage-food-card:hover,
+.why-choose-card:hover,
+.best-seller-card:hover,
+.testimonial-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 24px 56px rgba(62, 37, 16, 0.16);
+}
+
+.homepage-category-media {
+  height: 104px;
+  border-radius: 20px;
+  overflow: hidden;
+  background: rgba(200, 104, 40, 0.08);
+}
+
+.homepage-category-media img,
+.why-choose-media img,
+.admin-homepage-item-body img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.homepage-category-body,
+.homepage-food-body,
+.why-choose-card,
+.testimonial-card,
+.contact-highlight-card {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.homepage-category-body strong,
+.homepage-food-head h3,
+.why-choose-card h3,
+.best-seller-body h3,
+.testimonial-head strong {
+  font-family: "Fraunces", Georgia, serif;
+  font-weight: 600;
+}
+
+.homepage-category-body span,
+.homepage-category-body p,
+.homepage-food-body p,
+.why-choose-card p,
+.testimonial-card p,
+.contact-detail-card span,
+.contact-highlight-card p {
+  color: var(--muted);
+}
+
+.homepage-icon-surface {
+  width: 100%;
+  height: 100%;
+  min-height: 104px;
+  display: grid;
+  place-items: center;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(200, 104, 40, 0.14), rgba(47, 91, 76, 0.14));
+  color: var(--accent);
+  font-size: 2rem;
+}
+
+.homepage-icon-surface.is-large {
+  width: 72px;
+  height: 72px;
+  min-height: 72px;
+  border-radius: 22px;
+}
+
+.home-featured-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.homepage-food-card {
+  overflow: hidden;
+}
+
+.homepage-food-media,
+.best-seller-media {
+  position: relative;
+  aspect-ratio: 1.05;
+  overflow: hidden;
+}
+
+.homepage-food-media img,
+.best-seller-media img,
+.special-offer-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.homepage-food-overlay,
+.best-seller-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(8, 10, 16, 0.12) 0%, rgba(8, 10, 16, 0.78) 100%);
+}
+
+.homepage-food-badge,
+.best-seller-badge {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.42rem 0.8rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--accent), #ff9859);
+  color: #fff8f2;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.homepage-food-body,
+.best-seller-body {
+  padding: 1rem;
+}
+
+.homepage-food-head {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.homepage-food-head h3,
+.best-seller-body h3 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.homepage-price-row,
+.best-seller-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.homepage-original-price {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.homepage-price-row strong,
+.best-seller-footer strong {
+  font-size: 1.5rem;
+  color: var(--text);
+}
+
+.special-offer-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.special-offer-card {
+  position: relative;
+  min-height: 320px;
+  overflow: hidden;
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #090b11;
+}
+
+.special-offer-shade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(4, 6, 10, 0.92) 0%, rgba(4, 6, 10, 0.5) 100%),
+    linear-gradient(180deg, rgba(4, 6, 10, 0.1) 0%, rgba(4, 6, 10, 0.84) 100%);
+}
+
+.special-offer-content {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  align-content: end;
+  gap: 0.8rem;
+  padding: 1.3rem;
+  color: #fff8f2;
+}
+
+.special-offer-content h3,
+.contact-section-card h2 {
+  margin: 0;
+  font-family: "Fraunces", Georgia, serif;
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
+  line-height: 1;
+}
+
+.special-offer-content p {
+  margin: 0;
+  max-width: 34ch;
+  color: rgba(247, 241, 234, 0.78);
+}
+
+.why-choose-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.why-choose-card {
+  padding: 1.1rem;
+}
+
+.why-choose-media {
+  height: 140px;
+  overflow: hidden;
+  border-radius: 20px;
+  margin-bottom: 0.8rem;
+}
+
+.why-choose-card h3,
+.testimonial-card p,
+.contact-highlight-card h3 {
+  margin: 0;
+}
+
+.best-seller-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.best-seller-card {
+  overflow: hidden;
+  border-radius: 28px;
+  background: linear-gradient(145deg, #1a120f 0%, #111723 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #fff8f2;
+}
+
+.best-seller-body p {
+  color: rgba(247, 241, 234, 0.72);
+}
+
+.best-seller-footer .btn-outline {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff8f2;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.best-seller-footer .btn-outline:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.testimonial-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.testimonial-card {
+  padding: 1.1rem;
+}
+
+.testimonial-head {
+  display: flex;
+  gap: 0.85rem;
+  align-items: center;
+}
+
+.testimonial-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(47, 91, 76, 0.92), rgba(34, 65, 54, 0.92));
+  color: #f7f1ea;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  flex: 0 0 auto;
+}
+
+.testimonial-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.testimonial-stars {
+  display: flex;
+  gap: 0.25rem;
+  color: rgba(200, 104, 40, 0.2);
+}
+
+.testimonial-stars .is-filled {
+  color: #f7c38e;
+}
+
+.contact-section-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
+  gap: 1rem;
+  padding: 1.3rem;
+  border-radius: 32px;
+  background:
+    radial-gradient(circle at top right, rgba(247, 195, 142, 0.18), transparent 26%),
+    linear-gradient(145deg, #111723 0%, #090b11 100%);
+  color: #fff8f2;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.18);
+}
+
+.contact-detail-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 1rem;
+}
+
+.contact-detail-card {
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.contact-detail-card strong,
+.contact-detail-card a {
+  color: #fff8f2;
+  font-weight: 700;
+}
+
+.contact-highlight-card {
+  height: 100%;
+  padding: 1rem;
+  border-radius: 26px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.contact-social-row {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-top: 0.4rem;
+}
+
+.contact-social-row a {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff8f2;
+}
+
+.homepage-loading-shell {
+  margin-top: 0.2rem;
+}
+
+.homepage-loading-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.homepage-loading-card {
+  overflow: hidden;
+}
+
+.homepage-loading-media,
+.homepage-loading-line {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.homepage-loading-media::after,
+.homepage-loading-line::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.18), transparent);
+  animation: shimmer 1.4s linear infinite;
+}
+
+.homepage-loading-media {
+  height: 220px;
+}
+
+.homepage-loading-body {
+  display: grid;
+  gap: 0.7rem;
+  padding: 1rem;
+}
+
+.homepage-loading-line {
+  height: 14px;
+  border-radius: 999px;
+}
+
+.homepage-loading-line.short {
+  width: 34%;
+}
+
+.homepage-loading-line.wide {
+  width: 82%;
+}
+
 .site-footer {
   position: relative;
   z-index: 1;
@@ -2798,6 +3248,12 @@ td a:hover {
 }
 
 .footer-col a {
+  display: block;
+  color: rgba(244, 237, 231, 0.8);
+  margin-bottom: 0.45rem;
+}
+
+.footer-col span {
   display: block;
   color: rgba(244, 237, 231, 0.8);
   margin-bottom: 0.45rem;
@@ -2904,7 +3360,15 @@ td a {
   .category-grid,
   .timeline-grid,
   .menu-hero-stats,
-  .offer-grid {
+  .offer-grid,
+  .homepage-category-grid,
+  .home-featured-grid,
+  .special-offer-grid,
+  .why-choose-grid,
+  .best-seller-grid,
+  .testimonial-grid,
+  .contact-detail-grid,
+  .homepage-loading-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -2961,7 +3425,14 @@ td a {
   .order-card-grid,
   .order-detail-grid,
   .auth-dev-grid,
-  .offer-grid {
+  .offer-grid,
+  .homepage-category-grid,
+  .home-featured-grid,
+  .why-choose-grid,
+  .best-seller-grid,
+  .testimonial-grid,
+  .contact-detail-grid,
+  .homepage-loading-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -2993,6 +3464,10 @@ td a {
   .hero-slider-main {
     padding: 1.2rem;
   }
+
+  .contact-section-card {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 720px) {
@@ -3021,7 +3496,15 @@ td a {
   .auth-metric-grid,
   .order-card-grid,
   .order-detail-grid,
-  .offer-grid {
+  .offer-grid,
+  .homepage-category-grid,
+  .home-featured-grid,
+  .special-offer-grid,
+  .why-choose-grid,
+  .best-seller-grid,
+  .testimonial-grid,
+  .contact-detail-grid,
+  .homepage-loading-grid {
     grid-template-columns: 1fr;
   }
 
@@ -3103,6 +3586,10 @@ td a {
   .hero-slider-preview-card img {
     width: 72px;
     height: 72px;
+  }
+
+  .homepage-category-card {
+    grid-template-columns: 88px minmax(0, 1fr);
   }
 }
 

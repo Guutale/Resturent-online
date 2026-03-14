@@ -28,6 +28,7 @@ import NotificationsPage from "./pages/NotificationsPage";
 import AdminLoginPage from "./pages/admin/AdminLoginPage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import AdminHeroSlidesPage from "./pages/admin/AdminHeroSlidesPage";
+import AdminHomepageManagementPage from "./pages/admin/AdminHomepageManagementPage";
 import AdminCategoriesPage from "./pages/admin/AdminCategoriesPage";
 import AdminProductsPage from "./pages/admin/AdminProductsPage";
 import AdminOrdersPage from "./pages/admin/AdminOrdersPage";
@@ -69,6 +70,7 @@ const AppRouter = () => (
     <Route path="/admin/login" element={<AdminLoginPage />} />
     <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
       <Route index element={<AdminDashboardPage />} />
+      <Route path="homepage" element={<AdminHomepageManagementPage />} />
       <Route path="hero-slides" element={<AdminHeroSlidesPage />} />
       <Route path="categories" element={<AdminCategoriesPage />} />
       <Route path="products" element={<AdminProductsPage />} />
@@ -93,6 +95,7 @@ const AppRouter = () => (
 
     <Route path="/hr" element={<HRRoute><HRLayout /></HRRoute>}>
       <Route index element={<HRDashboardPage />} />
+      <Route path="homepage" element={<AdminHomepageManagementPage />} />
       <Route path="hero-slides" element={<AdminHeroSlidesPage />} />
       <Route path="staff" element={<HRStaffPage />} />
       <Route path="staff/:id" element={<HRStaffDetailPage />} />

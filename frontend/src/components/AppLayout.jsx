@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
+import { apiRequest } from "../lib/api";
+import { normalizeHomepageContent } from "../lib/homepageContent";
 
 const rolePortalMap = {
   admin: { to: "/admin", label: "Admin" },
@@ -12,8 +14,6 @@ const rolePortalMap = {
   delivery: { to: "/delivery", label: "Delivery" },
 };
 
-const navLinkClassName = ({ isActive }) => (isActive ? "nav-link active" : "nav-link");
-
 const siteLinks = [
   { label: "Home", type: "route", to: "/" },
   { label: "Menu", type: "route", to: "/menu" },
@@ -22,21 +22,61 @@ const siteLinks = [
   { label: "Contact", type: "hash", to: "/#contact", hash: "#contact" },
 ];
 
+const isExternalLink = (value) => /^(https?:\/\/|mailto:|tel:)/i.test(String(value || "").trim());
+
+const FooterActionLink = ({ className, to, children }) => {
+  if (!to) return null;
+
+  if (isExternalLink(to)) {
+    return (
+      <a className={className} href={to} target="_blank" rel="noreferrer">
+        {children}
+      </a>
+    );
+  }
+
+  return (
+    <Link className={className} to={to}>
+      {children}
+    </Link>
+  );
+};
+
+const navLinkClassName = ({ isActive }) => (isActive ? "nav-link active" : "nav-link");
+
 const AppLayout = () => {
   const { user, logout } = useAuth();
   const { items } = useCart();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [homepageContent, setHomepageContent] = useState({ sections: [], sectionsByKey: {} });
+  const [homepageLoading, setHomepageLoading] = useState(true);
   const count = items.reduce((sum, item) => sum + item.qty, 0);
   const portal = user ? rolePortalMap[user.role] : null;
   const userInitials = user?.name
     ? user.name
-        .split(" ")
-        .map((part) => part[0])
-        .join("")
-        .slice(0, 2)
-        .toUpperCase()
+      .split(" ")
+      .map((part) => part[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase()
     : "GU";
+
+  const loadHomepageContent = async () => {
+    setHomepageLoading(true);
+    try {
+      const data = await apiRequest("/homepage-content");
+      setHomepageContent(normalizeHomepageContent(data));
+    } catch {
+      setHomepageContent({ sections: [], sectionsByKey: {} });
+    } finally {
+      setHomepageLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadHomepageContent();
+  }, []);
 
   useEffect(() => {
     setMobileOpen(false);
@@ -54,6 +94,14 @@ const AppLayout = () => {
   }, [location.hash, location.pathname]);
 
   const mobileLinks = useMemo(() => siteLinks, []);
+  const footerSection = homepageContent.sectionsByKey.footer;
+  const footerSettings = footerSection?.settings || {};
+  const footerLinks = footerSettings.footerLinks || [];
+  const socialLinks = [
+    { label: "Facebook", href: footerSettings.facebookUrl, icon: "fa-brands fa-facebook-f" },
+    { label: "Instagram", href: footerSettings.instagramUrl, icon: "fa-brands fa-instagram" },
+    { label: "TikTok", href: footerSettings.tiktokUrl, icon: "fa-brands fa-tiktok" },
+  ].filter((entry) => entry.href);
 
   return (
     <div className="app-shell">
@@ -66,7 +114,7 @@ const AppLayout = () => {
             <Link className="logo" to="/">
               <span className="logo-mark">FP</span>
               <span className="logo-copy">
-                <span className="logo-name">Flavor Point</span>
+                <span className="logo-name">{footerSettings.restaurantName || "Flavor Point"}</span>
                 <span className="logo-kicker">Cinematic meal promotions</span>
               </span>
             </Link>
@@ -183,65 +231,71 @@ const AppLayout = () => {
       </header>
 
       <main className="container site-main">
-        <Outlet />
+        <Outlet context={{ homepageContent, homepageLoading, reloadHomepageContent: loadHomepageContent }} />
       </main>
 
-      <footer id="contact" className="site-footer">
-        <div className="container">
-          <section className="footer-cta">
-            <div>
-              <p className="section-kicker">Plan tonight's meal with less friction</p>
-              <h2>Promote the right discount, guide the next click, and keep the full journey premium.</h2>
-            </div>
-            <div className="footer-cta-actions">
-              <NavLink className="btn" to="/menu">Browse menu</NavLink>
-              {!user && <NavLink className="btn-outline" to="/register">Create account</NavLink>}
-            </div>
-          </section>
+      {!homepageLoading && footerSection?.isVisible !== false && (
+        <footer className="site-footer">
+          <div className="container">
+            <section className="footer-cta">
+              <div>
+                <p className="section-kicker">{footerSection.title || "Plan tonight's meal with less friction"}</p>
+                <h2>{footerSection.subtitle || "Promote the right discount, guide the next click, and keep the full journey premium."}</h2>
+              </div>
+              <div className="footer-cta-actions">
+                <NavLink className="btn" to="/menu">Browse menu</NavLink>
+                {!user && <NavLink className="btn-outline" to="/register">Create account</NavLink>}
+              </div>
+            </section>
 
-          <div className="footer-grid">
-            <div className="footer-brand">
-              <h3>Flavor<span>Point</span></h3>
-              <p>Dark cinematic promotions, admin-controlled banner deals, and a cleaner restaurant funnel from hero to checkout.</p>
-              <div className="footer-social">
-                <a href="#" aria-label="Facebook"><i className="fa-brands fa-facebook-f" /></a>
-                <a href="#" aria-label="Instagram"><i className="fa-brands fa-instagram" /></a>
-                <a href="#" aria-label="X"><i className="fa-brands fa-x-twitter" /></a>
+            <div className="footer-grid">
+              <div className="footer-brand">
+                <h3>{footerSettings.restaurantName || "Flavor Point"}</h3>
+                <p>{footerSettings.openingHours || "Open daily for premium promotions, fast ordering, and a cleaner restaurant funnel from hero to checkout."}</p>
+                <div className="footer-social">
+                  {socialLinks.map((entry) => (
+                    <a key={entry.label} href={entry.href} aria-label={entry.label} target="_blank" rel="noreferrer">
+                      <i className={entry.icon} />
+                    </a>
+                  ))}
+                </div>
+              </div>
+
+              <div className="footer-col">
+                <h4>Explore</h4>
+                {footerLinks.map((entry) => (
+                  <FooterActionLink key={`${entry.label}-${entry.href}`} to={entry.href}>
+                    {entry.label}
+                  </FooterActionLink>
+                ))}
+              </div>
+
+              <div className="footer-col">
+                <h4>Contact</h4>
+                {footerSettings.phone && <a href={`tel:${footerSettings.phone}`}>{footerSettings.phone}</a>}
+                {footerSettings.email && <a href={`mailto:${footerSettings.email}`}>{footerSettings.email}</a>}
+                {footerSettings.address && <span>{footerSettings.address}</span>}
+              </div>
+
+              <div className="footer-col">
+                <h4>Hours</h4>
+                <span>{footerSettings.openingHours}</span>
               </div>
             </div>
 
-            <div className="footer-col">
-              <h4>Explore</h4>
-              <Link to="/">Home</Link>
-              <Link to="/menu">Menu</Link>
-              <Link to="/#offers">Offers</Link>
-            </div>
-
-            <div className="footer-col">
-              <h4>Info</h4>
-              <Link to="/#about">About</Link>
-              <a href="#">Privacy Policy</a>
-              <a href="#">Terms</a>
-              <a href="#">Support</a>
-            </div>
-
-            <div className="footer-col">
-              <h4>Contact</h4>
-              <a href="tel:+252610000000">+252 61 000 000</a>
-              <a href="mailto:hello@flavorpoint.com">hello@flavorpoint.com</a>
-              <a href="#">Mogadishu, Somalia</a>
+            <div className="footer-bottom">
+              <span>Copyright 2026 {footerSettings.restaurantName || "Flavor Point"}. All rights reserved.</span>
+              <div className="footer-bottom-links">
+                {footerLinks.slice(0, 3).map((entry) => (
+                  <FooterActionLink key={`bottom-${entry.label}-${entry.href}`} to={entry.href}>
+                    {entry.label}
+                  </FooterActionLink>
+                ))}
+              </div>
             </div>
           </div>
-          <div className="footer-bottom">
-            <span>Copyright 2026 FlavorPoint. All rights reserved.</span>
-            <div className="footer-bottom-links">
-              <Link to="/">Home</Link>
-              <Link to="/menu">Menu</Link>
-              <a href="mailto:hello@flavorpoint.com">Support</a>
-            </div>
-          </div>
-        </div>
-      </footer>
+        </footer>
+      )}
     </div>
   );
 };
