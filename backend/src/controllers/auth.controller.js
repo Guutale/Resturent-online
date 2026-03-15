@@ -14,15 +14,23 @@ const sanitizeUser = (user) => ({
 });
 
 export const register = asyncHandler(async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, email, password, phone } = req.body;
+  const normalizedName = String(name || "").trim();
   const normalizedEmail = String(email || "").trim().toLowerCase();
+  const normalizedPhone = String(phone || "").trim();
 
-  if (!name || !normalizedEmail || !password) {
+  if (!normalizedName || !normalizedEmail || !password) {
     return res.status(400).json({ message: "name, email and password are required" });
   }
 
-  if (password.length < 6) {
-    return res.status(400).json({ message: "password must be at least 6 characters" });
+  if (!/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(password)) {
+    return res.status(400).json({
+      message: "password must be at least 8 characters and include at least one letter and one number",
+    });
+  }
+
+  if (normalizedPhone && !/^[0-9+()\-\s]{7,20}$/.test(normalizedPhone)) {
+    return res.status(400).json({ message: "phone must be a valid phone number" });
   }
 
   const exists = await User.findOne({ email: normalizedEmail }).lean();
@@ -31,7 +39,12 @@ export const register = asyncHandler(async (req, res) => {
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
-  const user = await User.create({ name, email: normalizedEmail, passwordHash });
+  const user = await User.create({
+    name: normalizedName,
+    email: normalizedEmail,
+    passwordHash,
+    phone: normalizedPhone,
+  });
 
   const token = signToken({ id: user._id, role: user.role });
   return res.status(201).json({ user: sanitizeUser(user), token });

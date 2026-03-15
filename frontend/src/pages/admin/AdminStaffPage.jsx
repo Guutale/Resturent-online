@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { apiRequest } from "../../lib/api";
 
 const roleBadge = (role) => `badge role-${role || "user"}`;
@@ -25,9 +25,10 @@ const emptyForm = {
 };
 
 const AdminStaffPage = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [items, setItems] = useState([]);
   const [search, setSearch] = useState("");
-  const [role, setRole] = useState("chef");
+  const [role, setRole] = useState(searchParams.get("role") || "chef");
   const [status, setStatus] = useState(""); // "" | "active" | "blocked"
   const [error, setError] = useState("");
 
@@ -56,6 +57,13 @@ const AdminStaffPage = () => {
     const t = setTimeout(() => load(), 200);
     return () => clearTimeout(t);
   }, [search, role, status]);
+
+  useEffect(() => {
+    const nextRole = searchParams.get("role");
+    if (nextRole && nextRole !== role) {
+      setRole(nextRole);
+    }
+  }, [role, searchParams]);
 
   const counts = useMemo(() => {
     const total = items.length;
@@ -176,7 +184,20 @@ const AdminStaffPage = () => {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <select className="admin-select" value={role} onChange={(e) => setRole(e.target.value)}>
+          <select
+            className="admin-select"
+            value={role}
+            onChange={(e) => {
+              const nextRole = e.target.value;
+              setRole(nextRole);
+              setSearchParams((current) => {
+                const next = new URLSearchParams(current);
+                if (nextRole) next.set("role", nextRole);
+                else next.delete("role");
+                return next;
+              });
+            }}
+          >
             <option value="chef">Chefs</option>
             <option value="waiter">Waiters</option>
             <option value="delivery">Delivery</option>

@@ -1,123 +1,181 @@
 import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import AuthSplitLayout from "../components/AuthSplitLayout";
 import { useAuth } from "../context/AuthContext";
+import { getAuthBrandingPageMeta } from "../lib/authBranding";
+
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const phonePattern = /^[0-9+()\-\s]{7,20}$/;
+const passwordPattern = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
 
 const RegisterPage = () => {
   const { register } = useAuth();
   const location = useLocation();
-  const nav = useNavigate();
+  const navigate = useNavigate();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
-  const [agree, setAgree] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const from = location.state?.from || "/";
 
-  const onSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-    if (!agree) {
-      setError("Please agree to terms.");
+  const onSubmit = async (event) => {
+    event.preventDefault();
+
+    const normalizedName = String(name || "").trim();
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+    const normalizedPhone = String(phone || "").trim();
+
+    if (!normalizedName) {
+      setError("Full name is required.");
       return;
     }
+
+    if (!normalizedEmail) {
+      setError("Email is required.");
+      return;
+    }
+
+    if (!emailPattern.test(normalizedEmail)) {
+      setError("Enter a valid email address.");
+      return;
+    }
+
+    if (normalizedPhone && !phonePattern.test(normalizedPhone)) {
+      setError("Enter a valid phone number or leave it blank.");
+      return;
+    }
+
+    if (!password) {
+      setError("Password is required.");
+      return;
+    }
+
+    if (!passwordPattern.test(password)) {
+      setError("Password must be at least 8 characters and include at least one letter and one number.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("Confirm password must match the password.");
+      return;
+    }
+
+    setError("");
+
     try {
-      await register(name, email, password);
-      nav(from, { replace: true });
+      await register(normalizedName, normalizedEmail, password, normalizedPhone);
+      const destination = typeof from === "string" && from !== "/" ? from : "/profile";
+      navigate(destination, { replace: true });
     } catch (err) {
       setError(err.message);
     }
   };
 
   return (
-    <div className="page auth-page">
-      <section className="auth-layout">
-        <article className="panel auth-showcase auth-showcase-alt">
-          <p className="section-kicker">Create account</p>
-          <h1 className="page-title">Join once and keep every future order easier.</h1>
-          <p className="muted">
-            Save your profile, move through checkout faster, and keep order history and notifications connected.
-          </p>
+    <AuthSplitLayout
+      pageType="register"
+      formEyebrow="Guest onboarding"
+      formTitle="Create your account"
+      formCaption="Save your profile once, then keep future ordering and checkout noticeably smoother."
+      formIcon="fa-solid fa-user-plus"
+      highlights={getAuthBrandingPageMeta("register").defaultHighlights}
+    >
+      <form className="auth-form-stack" onSubmit={onSubmit}>
+        {error && <div className="auth-alert">{error}</div>}
 
-          <div className="auth-metric-grid">
-            <div className="metric-card">
-              <strong>2 steps</strong>
-              <span>Register, then start ordering</span>
+        <div className="auth-grid-two">
+          <label className="auth-control">
+            <span>Full name</span>
+            <div className="auth-input-shell">
+              <i className="fa-regular fa-user" />
+              <input
+                type="text"
+                placeholder="Your full name"
+                autoComplete="name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+              />
             </div>
-            <div className="metric-card">
-              <strong>1 account</strong>
-              <span>For cart, orders, profile, and notifications</span>
+          </label>
+
+          <label className="auth-control">
+            <span>Phone number</span>
+            <div className="auth-input-shell">
+              <i className="fa-solid fa-phone" />
+              <input
+                type="tel"
+                placeholder="Optional"
+                autoComplete="tel"
+                value={phone}
+                onChange={(event) => setPhone(event.target.value)}
+              />
             </div>
-          </div>
+          </label>
+        </div>
 
-          <div className="auth-feature-list">
-            <div className="auth-feature">
-              <i className="fa-solid fa-credit-card" />
-              <div>
-                <strong>Cleaner checkout</strong>
-                <span>Delivery details and payment confirmation stay tied to your account.</span>
-              </div>
-            </div>
-            <div className="auth-feature">
-              <i className="fa-solid fa-receipt" />
-              <div>
-                <strong>Persistent history</strong>
-                <span>Open past orders, invoices, and payment statuses from one account area.</span>
-              </div>
-            </div>
-          </div>
-        </article>
-
-        <form className="panel auth-form-card" onSubmit={onSubmit}>
-          <span className="auth-icon-top"><i className="fa-solid fa-pizza-slice" /></span>
-          <h2 className="page-title">Create account</h2>
-          <p className="muted auth-caption">Join and start ordering your favorite meals.</p>
-          {error && <div className="form-alert error">{error}</div>}
-
-          <div className="input-icon">
-            <i className="fa-regular fa-user" />
-            <input placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
-          </div>
-
-          <div className="input-icon">
+        <label className="auth-control">
+          <span>Email address</span>
+          <div className="auth-input-shell">
             <i className="fa-regular fa-envelope" />
-            <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-          </div>
-
-          <div className="input-icon">
-            <i className="fa-solid fa-lock" />
             <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              type="email"
+              placeholder="you@example.com"
+              autoComplete="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
             />
           </div>
+        </label>
 
-          <div className="auth-row auth-row-start">
-            <label>
-              <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} />
-              I agree to terms
-            </label>
-          </div>
+        <div className="auth-grid-two">
+          <label className="auth-control">
+            <span>Password</span>
+            <div className="auth-input-shell">
+              <i className="fa-solid fa-lock" />
+              <input
+                type="password"
+                placeholder="At least 8 characters"
+                autoComplete="new-password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+              />
+            </div>
+          </label>
 
-          <button className="auth-submit">
-            <i className="fa-solid fa-user-plus" />
-            Create account
-          </button>
+          <label className="auth-control">
+            <span>Confirm password</span>
+            <div className="auth-input-shell">
+              <i className="fa-solid fa-shield-halved" />
+              <input
+                type="password"
+                placeholder="Repeat your password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+              />
+            </div>
+          </label>
+        </div>
 
-          <p className="social-label">or continue with</p>
-          <div className="social-row">
-            <button type="button" className="social-btn" aria-label="Google"><i className="fa-brands fa-google" /></button>
-            <button type="button" className="social-btn" aria-label="Facebook"><i className="fa-brands fa-facebook-f" /></button>
-            <button type="button" className="social-btn" aria-label="Apple"><i className="fa-brands fa-apple" /></button>
-          </div>
+        <p className="auth-inline-note">
+          Use at least 8 characters with one letter and one number.
+        </p>
 
-          <p className="muted auth-footer-link">
-            Already have an account? <Link className="auth-link" to="/login" state={{ from }}>Sign in</Link>
-          </p>
-        </form>
-      </section>
-    </div>
+        <button type="submit" className="auth-primary-btn">
+          <span>Create account</span>
+          <i className="fa-solid fa-arrow-right" />
+        </button>
+
+        <p className="auth-form-footnote">
+          Already have an account?{" "}
+          <Link className="auth-helper-link" to="/login" state={{ from }}>
+            Sign in
+          </Link>
+        </p>
+      </form>
+    </AuthSplitLayout>
   );
 };
 

@@ -4,6 +4,7 @@ import { apiRequest } from "../../lib/api";
 import { useAuth } from "../../context/AuthContext";
 
 const roleBadge = (role) => `badge role-${role || "user"}`;
+const emptyForm = { name: "", email: "", password: "", phone: "", role: "user" };
 
 const AdminUsersPage = () => {
   const { user: currentUser } = useAuth();
@@ -12,6 +13,9 @@ const AdminUsersPage = () => {
   const [role, setRole] = useState("");
   const [status, setStatus] = useState(""); // "" | "active" | "blocked"
   const [error, setError] = useState("");
+  const [modal, setModal] = useState({ open: false, mode: "create", user: null });
+  const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
 
   const load = () => {
     const params = new URLSearchParams();
@@ -64,6 +68,54 @@ const AdminUsersPage = () => {
     }
   };
 
+  const openCreate = () => {
+    setError("");
+    setForm(emptyForm);
+    setModal({ open: true, mode: "create", user: null });
+  };
+
+  const openEdit = (u) => {
+    setError("");
+    setForm({
+      name: u.name || "",
+      email: u.email || "",
+      password: "",
+      phone: u.phone || "",
+      role: u.role || "user",
+    });
+    setModal({ open: true, mode: "edit", user: u });
+  };
+
+  const closeModal = () => setModal({ open: false, mode: "create", user: null });
+
+  const submit = async (event) => {
+    event.preventDefault();
+    setError("");
+    setSaving(true);
+    try {
+      const payload = {
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        role: form.role,
+      };
+
+      if (modal.mode === "create") {
+        payload.password = form.password;
+        await apiRequest("/users", { method: "POST", body: JSON.stringify(payload) });
+      } else {
+        await apiRequest(`/users/${modal.user._id}`, { method: "PATCH", body: JSON.stringify(payload) });
+      }
+
+      closeModal();
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="admin-page">
       <div className="admin-page-head">
@@ -86,7 +138,7 @@ const AdminUsersPage = () => {
             <option value="user">User</option>
             <option value="admin">Admin</option>
             <option value="hr">HR</option>
-            <option value="finance">Finance</option>
+            <option value="finance">Accounting</option>
             <option value="dispatcher">Dispatcher</option>
             <option value="chef">Chef</option>
             <option value="waiter">Waiter</option>
@@ -97,6 +149,9 @@ const AdminUsersPage = () => {
             <option value="active">Active</option>
             <option value="blocked">Blocked</option>
           </select>
+          <button type="button" className="admin-btn-primary" onClick={openCreate}>
+            <i className="fa-solid fa-plus" /> Add User
+          </button>
         </div>
       </div>
 
@@ -178,7 +233,7 @@ const AdminUsersPage = () => {
                       <option value="user">User</option>
                       <option value="admin">Admin</option>
                       <option value="hr">HR</option>
-                      <option value="finance">Finance</option>
+                      <option value="finance">Accounting</option>
                       <option value="dispatcher">Dispatcher</option>
                       <option value="chef">Chef</option>
                       <option value="waiter">Waiter</option>
@@ -208,6 +263,9 @@ const AdminUsersPage = () => {
                   </td>
                   <td>
                     <div className="admin-row-actions">
+                      <button type="button" className="admin-icon-btn" onClick={() => openEdit(u)} title="Edit">
+                        <i className="fa-solid fa-pen" />
+                      </button>
                       <Link className="admin-btn-link" to={`/admin/users/${u._id}`}>
                         <i className="fa-solid fa-receipt" /> Orders
                       </Link>
@@ -235,6 +293,66 @@ const AdminUsersPage = () => {
           </table>
         </div>
       </div>
+
+      {modal.open && (
+        <div className="admin-modal-backdrop" role="dialog" aria-modal="true">
+          <div className="admin-modal">
+            <div className="admin-modal-head">
+              <h3 className="admin-modal-title">{modal.mode === "create" ? "Add User" : "Edit User"}</h3>
+              <div className="admin-muted">Create accounts or update basic profile fields and role access.</div>
+            </div>
+
+            <form className="admin-form" onSubmit={submit}>
+              <div>
+                <label className="admin-label">Full Name</label>
+                <input className="admin-input" value={form.name} onChange={(e) => setForm((current) => ({ ...current, name: e.target.value }))} />
+              </div>
+
+              <div className="admin-form-2col">
+                <div>
+                  <label className="admin-label">Email</label>
+                  <input className="admin-input" value={form.email} onChange={(e) => setForm((current) => ({ ...current, email: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="admin-label">Phone</label>
+                  <input className="admin-input" value={form.phone} onChange={(e) => setForm((current) => ({ ...current, phone: e.target.value }))} />
+                </div>
+              </div>
+
+              <div className="admin-form-2col">
+                <div>
+                  <label className="admin-label">Role</label>
+                  <select className="admin-select" value={form.role} onChange={(e) => setForm((current) => ({ ...current, role: e.target.value }))}>
+                    <option value="user">User</option>
+                    <option value="admin">Admin</option>
+                    <option value="hr">HR</option>
+                    <option value="finance">Accounting</option>
+                    <option value="dispatcher">Dispatcher</option>
+                    <option value="chef">Chef</option>
+                    <option value="waiter">Waiter</option>
+                    <option value="delivery">Delivery</option>
+                  </select>
+                </div>
+                {modal.mode === "create" && (
+                  <div>
+                    <label className="admin-label">Password</label>
+                    <input className="admin-input" type="password" value={form.password} onChange={(e) => setForm((current) => ({ ...current, password: e.target.value }))} />
+                  </div>
+                )}
+              </div>
+
+              <div className="admin-modal-actions">
+                <button type="button" className="admin-btn-secondary" onClick={closeModal} disabled={saving}>
+                  Cancel
+                </button>
+                <button type="submit" className="admin-btn-primary" disabled={saving}>
+                  {saving ? "Saving..." : "Save"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

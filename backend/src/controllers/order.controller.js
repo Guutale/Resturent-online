@@ -1,5 +1,6 @@
 ﻿import Order from "../models/Order.js";
 import Payment from "../models/Payment.js";
+import DiningTable from "../models/DiningTable.js";
 import Product from "../models/Product.js";
 import User from "../models/User.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -30,6 +31,7 @@ const ORDER_STATUSES = [
 ];
 
 const KITCHEN_STATUSES = ["pending", "cooking", "ready"];
+const WAITER_ACTIVE_STATUSES = ["pending", "preparing", "ready"];
 
 const escapeHtml = (value = "") =>
   String(value).replace(/[&<>"']/g, (ch) => ({
@@ -91,6 +93,114 @@ const applyStatusSideEffects = (order, status) => {
 
   if (normalized === "cancelled") {
     if (!order.cancelledAt) order.cancelledAt = now;
+  }
+};
+
+const reserveItemsForOrder = async (items = []) => {
+  if (!Array.isArray(items) || items.length === 0) {
+    const err = new Error("items are required");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const productIds = items.map((item) => item.productId);
+  const products = await Product.find({ _id: { $in: productIds }, isAvailable: true }).lean();
+  const productMap = new Map(products.map((product) => [String(product._id), product]));
+
+  const orderItems = [];
+  const decremented = [];
+  let subtotal = 0;
+
+  for (const item of items) {
+    const product = productMap.get(String(item.productId));
+    const qty = Number(item.qty);
+
+    if (!product) {
+      const err = new Error(`Invalid or unavailable product: ${item.productId}`);
+      err.statusCode = 400;
+      throw err;
+    }
+
+    if (!Number.isInteger(qty) || qty < 1) {
+      const err = new Error(`Invalid qty for product: ${item.productId}`);
+      err.statusCode = 400;
+      throw err;
+    }
+
+    if (typeof product.stockQty === "number" && product.stockQty < qty) {
+      const err = new Error(`Out of stock: ${product.title}`);
+      err.statusCode = 400;
+      throw err;
+    }
+
+    subtotal += product.price * qty;
+    orderItems.push({
+      productId: product._id,
+      title: product.title,
+      price: product.price,
+      qty,
+      imageUrl: product.imageUrl,
+      trackStock: typeof product.stockQty === "number",
+    });
+  }
+
+  for (const orderItem of orderItems) {
+    const product = productMap.get(String(orderItem.productId));
+    if (typeof product?.stockQty !== "number") continue;
+
+    const updated = await Product.findOneAndUpdate(
+      { _id: orderItem.productId, isAvailable: true, stockQty: { $gte: orderItem.qty } },
+      { $inc: { stockQty: -orderItem.qty } },
+      { new: true }
+    ).lean();
+
+    if (!updated) {
+      const err = new Error(`Out of stock: ${orderItem.title}`);
+      err.statusCode = 400;
+      throw err;
+    }
+
+    decremented.push({ productId: orderItem.productId, qty: orderItem.qty });
+
+    if (typeof updated.stockQty === "number" && updated.stockQty === 0 && updated.isAvailable) {
+      await Product.updateOne({ _id: updated._id }, { $set: { isAvailable: false } });
+    }
+
+    if (
+      typeof updated.stockQty === "number"
+      && typeof updated.lowStockThreshold === "number"
+      && updated.stockQty <= updated.lowStockThreshold
+    ) {
+      await createNotification({
+        audience: "admin",
+        title: "Low stock alert",
+        message: `${updated.title} is low (${updated.stockQty} left).`,
+        type: "low_stock",
+        data: { productId: updated._id, title: updated.title, stockQty: updated.stockQty },
+      });
+    }
+  }
+
+  return { orderItems, subtotal, decremented };
+};
+
+const rollbackReservedItems = async (decremented = []) => {
+  for (const item of decremented) {
+    await Product.updateOne({ _id: item.productId }, { $inc: { stockQty: item.qty } }).catch(() => {});
+  }
+};
+
+const releaseTableIfIdle = async (tableId) => {
+  if (!tableId) return;
+
+  const activeOrders = await Order.countDocuments({
+    tableId,
+    orderSource: "dine_in",
+    status: { $in: WAITER_ACTIVE_STATUSES },
+  });
+
+  if (activeOrders === 0) {
+    await DiningTable.updateOne({ _id: tableId }, { $set: { status: "available" } }).catch(() => {});
   }
 };
 
@@ -314,6 +424,118 @@ export const createOrder = asyncHandler(async (req, res) => {
   }
 });
 
+export const createWaiterOrder = asyncHandler(async (req, res) => {
+  const { items = [], tableId, customerName, phone, serviceNotes } = req.body || {};
+
+  if (!tableId) {
+    return res.status(400).json({ message: "tableId is required" });
+  }
+
+  const table = await DiningTable.findById(tableId).lean();
+  if (!table || !table.isActive) {
+    return res.status(400).json({ message: "Selected table is not available" });
+  }
+
+  if (table.status === "cleaning") {
+    return res.status(400).json({ message: "Table is currently being cleaned" });
+  }
+
+  let order;
+  let payment;
+  let reserved = [];
+
+  try {
+    const { orderItems, subtotal, decremented } = await reserveItemsForOrder(items);
+    reserved = decremented;
+
+    const orderNumber = await generateOrderNumber();
+    const displayName = String(customerName || "Walk-in customer").trim() || "Walk-in customer";
+    const normalizedNotes = String(serviceNotes || "").trim();
+
+    order = await Order.create({
+      orderNumber,
+      userId: req.user.id,
+      orderSource: "dine_in",
+      waiterUserId: req.user.id,
+      tableId: table._id,
+      tableLabel: table.name,
+      serviceNotes: normalizedNotes || undefined,
+      items: orderItems,
+      subtotal,
+      deliveryFee: 0,
+      total: subtotal,
+      customer: { name: displayName, phone: String(phone || "-").trim() || "-" },
+      deliveryAddress: {
+        city: "Restaurant",
+        district: "Dine-in",
+        street: table.name,
+        notes: normalizedNotes || undefined,
+      },
+      paymentMethod: "COD",
+      paymentStatus: "unpaid",
+      kitchenStatus: "pending",
+      deliveryStatus: "unassigned",
+      status: "pending",
+      statusHistory: [
+        {
+          status: "pending",
+          at: new Date(),
+          byUserId: req.user.id,
+          byRole: req.user.role,
+          note: "waiter_create",
+        },
+      ],
+    });
+
+    payment = await Payment.create({
+      orderId: order._id,
+      orderNumber: order.orderNumber,
+      userId: order.userId,
+      amount: order.total,
+      paymentMethod: "COD",
+      paymentStatus: "unpaid",
+    });
+
+    await DiningTable.updateOne({ _id: table._id }, { $set: { status: "occupied" } }).catch(() => {});
+
+    await createNotification({
+      audience: "admin",
+      title: "New dine-in order",
+      message: `${order.orderNumber} opened on ${table.name}.`,
+      type: "order_created",
+      data: { orderId: order._id, orderNumber: order.orderNumber, orderSource: "dine_in", tableId: table._id },
+    });
+
+    await writeAuditLog({
+      actor: req.user,
+      action: "waiter.order_create",
+      entityType: "Order",
+      entityId: order._id,
+      meta: { orderNumber: order.orderNumber, tableId: table._id, tableLabel: table.name },
+    });
+
+    return res.status(201).json({
+      orderId: order._id,
+      orderNumber: order.orderNumber,
+      status: order.status,
+      paymentStatus: payment.paymentStatus,
+      subtotal: order.subtotal,
+      total: order.total,
+      orderSource: order.orderSource,
+      tableLabel: order.tableLabel,
+    });
+  } catch (err) {
+    if (order?._id) {
+      await Order.findByIdAndDelete(order._id).catch(() => {});
+    }
+    if (payment?._id) {
+      await Payment.findByIdAndDelete(payment._id).catch(() => {});
+    }
+    await rollbackReservedItems(reserved);
+    throw err;
+  }
+});
+
 export const myOrders = asyncHandler(async (req, res) => {
   const { status } = req.query;
   const { page, limit, skip } = parsePagination(req.query);
@@ -333,6 +555,86 @@ export const myOrders = asyncHandler(async (req, res) => {
   return res.json({ items, page, pages, total });
 });
 
+export const waiterOrders = asyncHandler(async (req, res) => {
+  const { scope = "active", search } = req.query;
+  const { page, limit, skip } = parsePagination(req.query);
+
+  const filter = { waiterUserId: req.user.id, orderSource: "dine_in" };
+  if (scope === "history") {
+    filter.status = { $in: ["delivered", "cancelled", "failed"] };
+  } else {
+    filter.status = { $nin: ["delivered", "cancelled", "failed"] };
+  }
+
+  if (search) {
+    filter.$or = [
+      { orderNumber: { $regex: escapeRegex(String(search)), $options: "i" } },
+      { tableLabel: { $regex: escapeRegex(String(search)), $options: "i" } },
+      { "customer.name": { $regex: escapeRegex(String(search)), $options: "i" } },
+    ];
+  }
+
+  const total = await Order.countDocuments(filter);
+  const pages = Math.ceil(total / limit);
+  const items = await Order.find(filter)
+    .sort(scope === "history" ? { updatedAt: -1 } : { createdAt: -1 })
+    .skip(skip)
+    .limit(limit)
+    .lean();
+
+  return res.json({ items, page, pages, total });
+});
+
+export const waiterUpdateOrder = asyncHandler(async (req, res) => {
+  const { serviceNotes, status } = req.body || {};
+  const order = await Order.findById(req.params.id);
+
+  if (!order) return res.status(404).json({ message: "Order not found" });
+  if (order.orderSource !== "dine_in" || String(order.waiterUserId || "") !== req.user.id) {
+    return res.status(403).json({ message: "Forbidden" });
+  }
+
+  const prev = { status: order.status, serviceNotes: order.serviceNotes };
+
+  if (serviceNotes !== undefined) {
+    order.serviceNotes = String(serviceNotes || "").trim() || undefined;
+    if (order.deliveryAddress) {
+      order.deliveryAddress.notes = order.serviceNotes;
+    }
+  }
+
+  if (status !== undefined) {
+    if (status !== "delivered") {
+      return res.status(400).json({ message: "Waiter can only mark dine-in orders as delivered" });
+    }
+    if (order.status !== "ready") {
+      return res.status(400).json({ message: "Only ready orders can be marked as delivered" });
+    }
+
+    order.status = "delivered";
+    order.deliveryStatus = "delivered";
+    order.servedAt = new Date();
+    pushStatusHistory(order, "delivered", req.user, "waiter_served");
+    applyStatusSideEffects(order, "delivered");
+  }
+
+  await order.save();
+
+  if (status === "delivered") {
+    await releaseTableIfIdle(order.tableId);
+  }
+
+  await writeAuditLog({
+    actor: req.user,
+    action: "waiter.order_update",
+    entityType: "Order",
+    entityId: order._id,
+    meta: { orderNumber: order.orderNumber, prev, next: { status: order.status, serviceNotes: order.serviceNotes } },
+  });
+
+  return res.json({ order });
+});
+
 export const getOrderById = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id).lean();
 
@@ -344,10 +646,11 @@ export const getOrderById = asyncHandler(async (req, res) => {
   const isAdmin = req.user.role === "admin";
   const isDispatcher = req.user.role === "dispatcher";
   const isChef = req.user.role === "chef" && ["pending", "preparing", "ready"].includes(order.status);
+  const isWaiter = req.user.role === "waiter" && String(order.waiterUserId || "") === req.user.id;
   const isAssignedDelivery =
     req.user.role === "delivery" && String(order.assignedDeliveryUserId || "") === req.user.id;
 
-  if (!isOwner && !isAdmin && !isDispatcher && !isChef && !isAssignedDelivery) {
+  if (!isOwner && !isAdmin && !isDispatcher && !isChef && !isWaiter && !isAssignedDelivery) {
     return res.status(403).json({ message: "Forbidden" });
   }
 
@@ -365,10 +668,11 @@ export const getOrderInvoice = asyncHandler(async (req, res) => {
   const isAdmin = req.user.role === "admin";
   const isDispatcher = req.user.role === "dispatcher";
   const isChef = req.user.role === "chef" && ["pending", "preparing", "ready"].includes(order.status);
+  const isWaiter = req.user.role === "waiter" && String(order.waiterUserId || "") === req.user.id;
   const isAssignedDelivery =
     req.user.role === "delivery" && String(order.assignedDeliveryUserId || "") === req.user.id;
 
-  if (!isOwner && !isAdmin && !isDispatcher && !isChef && !isAssignedDelivery) {
+  if (!isOwner && !isAdmin && !isDispatcher && !isChef && !isWaiter && !isAssignedDelivery) {
     return res.status(403).json({ message: "Forbidden" });
   }
 
@@ -554,7 +858,7 @@ export const confirmPayment = asyncHandler(async (req, res) => {
 });
 
 export const adminListOrders = asyncHandler(async (req, res) => {
-  const { status, search, userId, assignedDeliveryUserId, paymentStatus, paymentMethod, from, to } = req.query;
+  const { status, search, userId, assignedDeliveryUserId, paymentStatus, paymentMethod, from, to, orderSource, waiterUserId } = req.query;
   const { page, limit, skip } = parsePagination(req.query);
 
   const filter = {};
@@ -562,9 +866,11 @@ export const adminListOrders = asyncHandler(async (req, res) => {
   // Keep the main Orders screen focused on fulfillment orders; payment verification happens in Payments.
   if (!status) filter.status = { $nin: ["awaiting_payment", "pending_verification"] };
   if (userId) filter.userId = userId;
+  if (waiterUserId) filter.waiterUserId = waiterUserId;
   if (assignedDeliveryUserId) filter.assignedDeliveryUserId = assignedDeliveryUserId;
   if (paymentStatus) filter.paymentStatus = paymentStatus;
   if (paymentMethod) filter.paymentMethod = paymentMethod;
+  if (orderSource === "delivery" || orderSource === "dine_in") filter.orderSource = orderSource;
   if (search) filter.orderNumber = { $regex: escapeRegex(String(search)), $options: "i" };
 
   if (from || to) {
@@ -616,6 +922,10 @@ export const adminUpdateOrderStatus = asyncHandler(async (req, res) => {
   pushStatusHistory(order, status, req.user, "admin_update");
   applyStatusSideEffects(order, status);
   await order.save();
+
+  if (order.orderSource === "dine_in" && ["delivered", "cancelled", "failed"].includes(status)) {
+    await releaseTableIfIdle(order.tableId);
+  }
 
   if (String(order.userId)) {
     await createNotification({
@@ -697,8 +1007,7 @@ export const cancelMyOrder = asyncHandler(async (req, res) => {
 });
 
 export const adminAssignDelivery = asyncHandler(async (req, res) => {
-  // Separation of duties: only Dispatcher can assign deliveries.
-  if (req.user.role !== "dispatcher") {
+  if (req.user.role !== "dispatcher" && req.user.role !== "admin") {
     return res.status(403).json({ message: "Forbidden" });
   }
 
@@ -715,6 +1024,10 @@ export const adminAssignDelivery = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id);
   if (!order) {
     return res.status(404).json({ message: "Order not found" });
+  }
+
+  if (order.orderSource === "dine_in") {
+    return res.status(400).json({ message: "Dine-in orders cannot be assigned for delivery" });
   }
 
   if (order.status === "delivered" || order.status === "cancelled" || order.status === "failed") {
@@ -760,7 +1073,7 @@ export const adminAssignDelivery = asyncHandler(async (req, res) => {
 
   await writeAuditLog({
     actor: req.user,
-    action: "dispatcher.order_assign_delivery",
+    action: req.user.role === "admin" ? "admin.order_assign_delivery" : "dispatcher.order_assign_delivery",
     entityType: "Order",
     entityId: order._id,
     meta: { orderNumber: order.orderNumber, prev, next: { status: order.status, assignedDeliveryUserId: order.assignedDeliveryUserId } },
@@ -855,11 +1168,17 @@ export const deliveryUpdateOrderStatus = asyncHandler(async (req, res) => {
 });
 
 export const kitchenOrders = asyncHandler(async (req, res) => {
-  const { kitchenStatus, search } = req.query;
+  const { kitchenStatus, search, scope = "active" } = req.query;
   const { page, limit, skip } = parsePagination(req.query);
 
-  const filter = { status: { $in: ["pending", "preparing", "ready"] } };
-  if (kitchenStatus && KITCHEN_STATUSES.includes(kitchenStatus)) {
+  const filter = {};
+  if (scope === "completed") {
+    filter.status = { $in: ["assigned", "out_for_delivery", "delivered", "failed", "cancelled"] };
+  } else {
+    filter.status = { $in: ["pending", "preparing", "ready"] };
+  }
+
+  if (scope !== "completed" && kitchenStatus && KITCHEN_STATUSES.includes(kitchenStatus)) {
     filter.kitchenStatus = kitchenStatus;
   }
   if (search) filter.orderNumber = { $regex: escapeRegex(String(search)), $options: "i" };

@@ -1,8 +1,10 @@
+import { getStoredAuthToken } from "./authStorage";
+
 const RAW_API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api";
 const API_BASE = RAW_API_BASE.replace(/\/+$/, "");
 
 export const apiRequest = async (path, options = {}) => {
-  const token = localStorage.getItem("token");
+  const token = getStoredAuthToken();
   const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
   if (token) headers.Authorization = `Bearer ${token}`;
 

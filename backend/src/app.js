@@ -16,6 +16,8 @@ import attendanceRoutes from "./routes/attendance.routes.js";
 import financeRoutes from "./routes/finance.routes.js";
 import heroSlideRoutes from "./routes/heroSlide.routes.js";
 import homepageContentRoutes from "./routes/homepageContent.routes.js";
+import authBrandingRoutes from "./routes/authBranding.routes.js";
+import tableRoutes from "./routes/table.routes.js";
 import { errorHandler, notFoundHandler } from "./middleware/error.js";
 
 const app = express();
@@ -43,6 +45,8 @@ app.use("/api/attendance", attendanceRoutes);
 app.use("/api/finance", financeRoutes);
 app.use("/api/hero-slides", heroSlideRoutes);
 app.use("/api/homepage-content", homepageContentRoutes);
+app.use("/api/auth-branding", authBrandingRoutes);
+app.use("/api/tables", tableRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

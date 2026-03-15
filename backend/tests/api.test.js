@@ -53,7 +53,7 @@ test("register endpoint returns token and user", async () => {
   const res = await request(app).post("/api/auth/register").send({
     name: "Ali",
     email: "ALI@mail.com",
-    password: "123456",
+    password: "pass1234",
   });
 
   assert.equal(res.status, 201);

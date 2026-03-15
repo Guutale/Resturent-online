@@ -97,6 +97,8 @@ const AppLayout = () => {
   const footerSection = homepageContent.sectionsByKey.footer;
   const footerSettings = footerSection?.settings || {};
   const footerLinks = footerSettings.footerLinks || [];
+  const restaurantName = footerSettings.restaurantName || "Flavor Point";
+  const showPortalChip = Boolean(portal && user && user.role !== "user");
   const socialLinks = [
     { label: "Facebook", href: footerSettings.facebookUrl, icon: "fa-brands fa-facebook-f" },
     { label: "Instagram", href: footerSettings.instagramUrl, icon: "fa-brands fa-instagram" },
@@ -108,14 +110,38 @@ const AppLayout = () => {
       <div className="site-glow site-glow-left" />
       <div className="site-glow site-glow-right" />
 
+      <div className="announcement-bar">
+        <div className="container announcement-inner">
+          <span>
+            <i className="fa-solid fa-fire-flame-curved" />
+            Seasonal plates, warm service, and elevated online ordering from our kitchen to your table.
+          </span>
+
+          <div className="announcement-meta">
+            {footerSettings.openingHours && (
+              <span>
+                <i className="fa-regular fa-clock" />
+                {footerSettings.openingHours}
+              </span>
+            )}
+            {footerSettings.phone && (
+              <span>
+                <i className="fa-solid fa-phone" />
+                {footerSettings.phone}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
       <header className="topbar hero-topbar">
         <div className="container topbar-shell">
           <div className="topbar-inner hero-nav-shell">
             <Link className="logo" to="/">
               <span className="logo-mark">FP</span>
               <span className="logo-copy">
-                <span className="logo-name">{footerSettings.restaurantName || "Flavor Point"}</span>
-                <span className="logo-kicker">Cinematic meal promotions</span>
+                <span className="logo-name">{restaurantName}</span>
+                <span className="logo-kicker">Warm dining, delivered with style</span>
               </span>
             </Link>
 
@@ -138,7 +164,7 @@ const AppLayout = () => {
             </nav>
 
             <div className="header-actions hero-header-actions">
-              {portal && (
+              {showPortalChip && (
                 <NavLink className="utility-chip" to={portal.to}>
                   <i className="fa-solid fa-briefcase" />
                   {portal.label}
@@ -239,19 +265,23 @@ const AppLayout = () => {
           <div className="container">
             <section className="footer-cta">
               <div>
-                <p className="section-kicker">{footerSection.title || "Plan tonight's meal with less friction"}</p>
-                <h2>{footerSection.subtitle || "Promote the right discount, guide the next click, and keep the full journey premium."}</h2>
+                <p className="section-kicker">Plan tonight&apos;s next order</p>
+                <h2>
+                  Bring {restaurantName} home with a polished menu journey built for cravings, comfort, and repeat visits.
+                </h2>
               </div>
               <div className="footer-cta-actions">
                 <NavLink className="btn" to="/menu">Browse menu</NavLink>
-                {!user && <NavLink className="btn-outline" to="/register">Create account</NavLink>}
+                <NavLink className="btn-outline" to="/#contact">Contact us</NavLink>
               </div>
             </section>
 
             <div className="footer-grid">
               <div className="footer-brand">
-                <h3>{footerSettings.restaurantName || "Flavor Point"}</h3>
-                <p>{footerSettings.openingHours || "Open daily for premium promotions, fast ordering, and a cleaner restaurant funnel from hero to checkout."}</p>
+                <h3>{restaurantName}</h3>
+                <p>
+                  Seasonal favorites, chef-led highlights, and a smoother path from discovery to checkout for every customer.
+                </p>
                 <div className="footer-social">
                   {socialLinks.map((entry) => (
                     <a key={entry.label} href={entry.href} aria-label={entry.label} target="_blank" rel="noreferrer">
@@ -261,30 +291,36 @@ const AppLayout = () => {
                 </div>
               </div>
 
-              <div className="footer-col">
-                <h4>Explore</h4>
-                {footerLinks.map((entry) => (
-                  <FooterActionLink key={`${entry.label}-${entry.href}`} to={entry.href}>
-                    {entry.label}
-                  </FooterActionLink>
-                ))}
-              </div>
+              {(footerLinks.length > 0) && (
+                <div className="footer-col">
+                  <h4>Explore</h4>
+                  {footerLinks.map((entry) => (
+                    <FooterActionLink key={`${entry.label}-${entry.href}`} to={entry.href}>
+                      {entry.label}
+                    </FooterActionLink>
+                  ))}
+                </div>
+              )}
 
-              <div className="footer-col">
-                <h4>Contact</h4>
-                {footerSettings.phone && <a href={`tel:${footerSettings.phone}`}>{footerSettings.phone}</a>}
-                {footerSettings.email && <a href={`mailto:${footerSettings.email}`}>{footerSettings.email}</a>}
-                {footerSettings.address && <span>{footerSettings.address}</span>}
-              </div>
+              {(footerSettings.phone || footerSettings.email || footerSettings.address) && (
+                <div className="footer-col">
+                  <h4>Contact</h4>
+                  {footerSettings.phone && <a href={`tel:${footerSettings.phone}`}>{footerSettings.phone}</a>}
+                  {footerSettings.email && <a href={`mailto:${footerSettings.email}`}>{footerSettings.email}</a>}
+                  {footerSettings.address && <span>{footerSettings.address}</span>}
+                </div>
+              )}
 
-              <div className="footer-col">
-                <h4>Hours</h4>
-                <span>{footerSettings.openingHours}</span>
-              </div>
+              {footerSettings.openingHours && (
+                <div className="footer-col">
+                  <h4>Hours</h4>
+                  <span>{footerSettings.openingHours}</span>
+                </div>
+              )}
             </div>
 
             <div className="footer-bottom">
-              <span>Copyright 2026 {footerSettings.restaurantName || "Flavor Point"}. All rights reserved.</span>
+              <span>Copyright 2026 {restaurantName}. All rights reserved.</span>
               <div className="footer-bottom-links">
                 {footerLinks.slice(0, 3).map((entry) => (
                   <FooterActionLink key={`bottom-${entry.label}-${entry.href}`} to={entry.href}>

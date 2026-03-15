@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { apiRequest } from "../../lib/api";
 
 const statusClass = (status) => `badge pay-${status}`;
 
 const AdminPaymentsPage = () => {
+  const location = useLocation();
   const [items, setItems] = useState([]);
   const [search, setSearch] = useState("");
   const [paymentStatus, setPaymentStatus] = useState("");
@@ -12,6 +13,7 @@ const AdminPaymentsPage = () => {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [error, setError] = useState("");
+  const isFinanceView = location.pathname.startsWith("/finance");
 
   const load = () => {
     const params = new URLSearchParams();
@@ -171,7 +173,11 @@ const AdminPaymentsPage = () => {
               {items.map((p) => (
                 <tr key={p._id}>
                   <td>
-                    <Link className="admin-link" to={`/admin/orders/${p.orderId}`}>{p.orderNumber}</Link>
+                    {isFinanceView ? (
+                      <span style={{ fontWeight: 900 }}>{p.orderNumber}</span>
+                    ) : (
+                      <Link className="admin-link" to={`/admin/orders/${p.orderId}`}>{p.orderNumber}</Link>
+                    )}
                   </td>
                   <td style={{ fontWeight: 900 }}>{p.paymentMethod}</td>
                   <td><span className={statusClass(p.paymentStatus)}>{p.paymentStatus}</span></td>

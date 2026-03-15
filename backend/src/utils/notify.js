@@ -9,7 +9,7 @@ export const createNotification = async ({ audience, userId, title, message, typ
       title,
       message,
       type,
-      data,
+      datyya,
     });
   } catch (err) {
     // Notifications should not break the request flow.

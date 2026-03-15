@@ -43,6 +43,7 @@ const applyStaffPatch = (user, staffPatch) => {
   if (typeof staffPatch.nationalId === "string") staff.nationalId = staffPatch.nationalId.trim();
   if (typeof staffPatch.address === "string") staff.address = staffPatch.address.trim();
   if (typeof staffPatch.experience === "string") staff.experience = staffPatch.experience.trim();
+  if (typeof staffPatch.notes === "string") staff.notes = staffPatch.notes.trim();
 
   if (staffPatch.monthlySalary !== undefined) {
     const v = Number(staffPatch.monthlySalary);
@@ -325,6 +326,7 @@ export const adminCreateUser = asyncHandler(async (req, res) => {
     if (typeof staff.nationalId === "string") doc.staff.nationalId = staff.nationalId.trim();
     if (typeof staff.address === "string") doc.staff.address = staff.address.trim();
     if (typeof staff.experience === "string") doc.staff.experience = staff.experience.trim();
+    if (typeof staff.notes === "string") doc.staff.notes = staff.notes.trim();
     if (typeof staff.vehicleType === "string") doc.staff.vehicleType = staff.vehicleType.trim();
     if (staff.availabilityStatus && ["available", "busy", "offline"].includes(staff.availabilityStatus)) {
       doc.staff.availabilityStatus = staff.availabilityStatus;

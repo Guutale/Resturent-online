@@ -1,165 +1,157 @@
 import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import AuthSplitLayout from "../components/AuthSplitLayout";
 import { useAuth } from "../context/AuthContext";
+import { getDashboardHome } from "../lib/dashboardRoles";
+import { getAuthBrandingPageMeta } from "../lib/authBranding";
 
 const DEV_ACCOUNTS = [
   { role: "Admin", email: "admin@mail.com", password: "admin123", hint: "Redirects to /admin" },
   { role: "HR", email: "hr@mail.com", password: "hr12345", hint: "Redirects to /hr" },
-  { role: "Finance", email: "finance@mail.com", password: "finance123", hint: "Redirects to /finance" },
+  { role: "Accounting", email: "finance@mail.com", password: "finance123", hint: "Redirects to /finance" },
   { role: "Dispatcher", email: "dispatcher@mail.com", password: "dispatcher123", hint: "Redirects to /dispatcher" },
   { role: "Chef", email: "chef@mail.com", password: "chef123", hint: "Redirects to /chef" },
-  { role: "Waiter", email: "waiter@mail.com", password: "waiter123", hint: "No dashboard (v1)" },
+  { role: "Waiter", email: "waiter@mail.com", password: "waiter123", hint: "Redirects to /waiter" },
   { role: "Delivery", email: "delivery@mail.com", password: "delivery123", hint: "Redirects to /delivery" },
   { role: "User", email: "user@mail.com", password: "user123", hint: "Regular customer account" },
 ];
 
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const LoginPage = () => {
   const { login } = useAuth();
   const location = useLocation();
-  const nav = useNavigate();
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [remember, setRemember] = useState(false);
+  const [remember, setRemember] = useState(true);
   const [error, setError] = useState("");
   const from = location.state?.from || "/";
   const showDev = import.meta.env.DEV;
 
-  const onSubmit = async (e) => {
-    e.preventDefault();
+  const onSubmit = async (event) => {
+    event.preventDefault();
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+
+    if (!normalizedEmail) {
+      setError("Email is required.");
+      return;
+    }
+
+    if (!emailPattern.test(normalizedEmail)) {
+      setError("Enter a valid email address.");
+      return;
+    }
+
+    if (!String(password || "").trim()) {
+      setError("Password is required.");
+      return;
+    }
+
     setError("");
+
     try {
-      const data = await login(email, password);
-      if (data?.user?.role === "admin") {
-        nav("/admin", { replace: true });
-      } else if (data?.user?.role === "hr") {
-        nav("/hr", { replace: true });
-      } else if (data?.user?.role === "finance") {
-        nav("/finance", { replace: true });
-      } else if (data?.user?.role === "dispatcher") {
-        nav("/dispatcher", { replace: true });
-      } else if (data?.user?.role === "chef") {
-        nav("/chef", { replace: true });
-      } else if (data?.user?.role === "delivery") {
-        nav("/delivery", { replace: true });
-      } else {
-        nav(from, { replace: true });
-      }
+      const data = await login(normalizedEmail, password, remember);
+      const home = getDashboardHome(data?.user?.role);
+      navigate(home === "/" ? from : home, { replace: true });
     } catch (err) {
       setError(err.message);
     }
   };
 
   return (
-    <div className="page auth-page">
-      <section className="auth-layout">
-        <article className="panel auth-showcase">
-          <p className="section-kicker">Welcome back</p>
-          <h1 className="page-title">Sign in and keep the ordering flow moving.</h1>
-          <p className="muted">
-            Pick up where you left off, review your orders, and move from menu to payment without losing context.
-          </p>
+    <AuthSplitLayout
+      pageType="login"
+      formEyebrow="Customer and staff access"
+      formTitle="Sign in to continue"
+      formCaption="A cleaner, faster gateway into ordering, notifications, and role-specific dashboards."
+      formIcon="fa-solid fa-utensils"
+      highlights={getAuthBrandingPageMeta("login").defaultHighlights}
+    >
+      <form className="auth-form-stack" onSubmit={onSubmit}>
+        {error && <div className="auth-alert">{error}</div>}
 
-          <div className="auth-feature-list">
-            <div className="auth-feature">
-              <i className="fa-solid fa-box-open" />
-              <div>
-                <strong>Track every order</strong>
-                <span>Payment updates, kitchen progress, and delivery status stay in one place.</span>
-              </div>
-            </div>
-            <div className="auth-feature">
-              <i className="fa-solid fa-bell" />
-              <div>
-                <strong>See notifications faster</strong>
-                <span>Unread updates and payment requests remain visible after login.</span>
-              </div>
-            </div>
-            <div className="auth-feature">
-              <i className="fa-solid fa-user-check" />
-              <div>
-                <strong>Portal-aware redirect</strong>
-                <span>Staff accounts land in the right dashboard automatically.</span>
-              </div>
-            </div>
-          </div>
-
-          {showDev && (
-            <div className="auth-dev-panel">
-              <div className="auth-dev-head">
-                <strong>Dev accounts</strong>
-                <span className="muted">Click one to prefill credentials</span>
-              </div>
-              <div className="auth-dev-grid">
-                {DEV_ACCOUNTS.map((account) => (
-                  <button
-                    key={account.role}
-                    type="button"
-                    className="auth-dev-card"
-                    onClick={() => {
-                      setEmail(account.email);
-                      setPassword(account.password);
-                    }}
-                    title={account.hint}
-                  >
-                    <strong>{account.role}</strong>
-                    <span>{account.email}</span>
-                  </button>
-                ))}
-              </div>
-              <p className="muted auth-dev-caption">
-                If login still fails, run `npm run seed:roles` inside `backend/`.
-              </p>
-            </div>
-          )}
-        </article>
-
-        <form className="panel auth-form-card" onSubmit={onSubmit}>
-          <span className="auth-icon-top"><i className="fa-solid fa-utensils" /></span>
-          <h2 className="page-title">Sign in</h2>
-          <p className="muted auth-caption">Continue your restaurant ordering experience.</p>
-          {error && <div className="form-alert error">{error}</div>}
-
-          <div className="input-icon">
+        <label className="auth-control">
+          <span>Email address</span>
+          <div className="auth-input-shell">
             <i className="fa-regular fa-envelope" />
-            <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <input
+              type="email"
+              placeholder="you@example.com"
+              autoComplete="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
           </div>
+        </label>
 
-          <div className="input-icon">
+        <label className="auth-control">
+          <span>Password</span>
+          <div className="auth-input-shell">
             <i className="fa-solid fa-lock" />
             <input
               type="password"
-              placeholder="Password"
+              placeholder="Enter your password"
+              autoComplete="current-password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(event) => setPassword(event.target.value)}
             />
           </div>
+        </label>
 
-          <div className="auth-row">
-            <label>
-              <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
-              Remember me
-            </label>
-            <a className="auth-link" href="#">Forgot password?</a>
-          </div>
+        <div className="auth-inline-row">
+          <label className="auth-checkbox">
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(event) => setRemember(event.target.checked)}
+            />
+            Keep me signed in on this device
+          </label>
+          <Link className="auth-helper-link" to="/#contact">
+            Forgot password?
+          </Link>
+        </div>
 
-          <button className="auth-submit">
-            <i className="fa-solid fa-arrow-right-to-bracket" />
-            Sign in
-          </button>
+        <button type="submit" className="auth-primary-btn">
+          <span>Sign in</span>
+          <i className="fa-solid fa-arrow-right-to-bracket" />
+        </button>
 
-          <p className="social-label">or continue with</p>
-          <div className="social-row">
-            <button type="button" className="social-btn" aria-label="Google"><i className="fa-brands fa-google" /></button>
-            <button type="button" className="social-btn" aria-label="Facebook"><i className="fa-brands fa-facebook-f" /></button>
-            <button type="button" className="social-btn" aria-label="Apple"><i className="fa-brands fa-apple" /></button>
-          </div>
+        <p className="auth-form-footnote">
+          New here?{" "}
+          <Link className="auth-helper-link" to="/register" state={{ from }}>
+            Create an account
+          </Link>
+        </p>
 
-          <p className="muted auth-footer-link">
-            Don&apos;t have an account? <Link className="auth-link" to="/register" state={{ from }}>Register</Link>
-          </p>
-        </form>
-      </section>
-    </div>
+        {showDev && (
+          <details className="auth-dev-box">
+            <summary>Dev accounts</summary>
+            <div className="auth-dev-grid-premium">
+              {DEV_ACCOUNTS.map((account) => (
+                <button
+                  key={account.role}
+                  type="button"
+                  className="auth-dev-card-premium"
+                  onClick={() => {
+                    setEmail(account.email);
+                    setPassword(account.password);
+                  }}
+                  title={account.hint}
+                >
+                  <strong>{account.role}</strong>
+                  <span>{account.email}</span>
+                </button>
+              ))}
+            </div>
+            <p className="auth-dev-caption-premium">
+              If a seeded account fails, run <code>npm run seed:roles</code> in <code>backend/</code>.
+            </p>
+          </details>
+        )}
+      </form>
+    </AuthSplitLayout>
   );
 };
 

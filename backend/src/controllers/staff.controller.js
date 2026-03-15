@@ -110,6 +110,7 @@ export const createStaff = asyncHandler(async (req, res) => {
     if (typeof staff.nationalId === "string") staffDoc.nationalId = staff.nationalId.trim();
     if (typeof staff.address === "string") staffDoc.address = staff.address.trim();
     if (typeof staff.experience === "string") staffDoc.experience = staff.experience.trim();
+    if (typeof staff.notes === "string") staffDoc.notes = staff.notes.trim();
 
     if (staff.monthlySalary !== undefined) {
       const v = Number(staff.monthlySalary);
@@ -268,6 +269,7 @@ export const updateStaff = asyncHandler(async (req, res) => {
     if (typeof staff.nationalId === "string") user.staff.nationalId = staff.nationalId.trim();
     if (typeof staff.address === "string") user.staff.address = staff.address.trim();
     if (typeof staff.experience === "string") user.staff.experience = staff.experience.trim();
+    if (typeof staff.notes === "string") user.staff.notes = staff.notes.trim();
 
     if (staff.monthlySalary !== undefined) {
       const v = Number(staff.monthlySalary);

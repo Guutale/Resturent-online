@@ -11,11 +11,22 @@ const toDayKey = (d) => {
 
 const AdminDashboardPage = () => {
   const [orders, setOrders] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [offers, setOffers] = useState([]);
 
   useEffect(() => {
-    apiRequest("/orders")
-      .then((d) => setOrders(d.items || []))
-      .catch(() => setOrders([]));
+    Promise.all([
+      apiRequest("/orders?limit=100").then((d) => d.items || []).catch(() => []),
+      apiRequest("/users?limit=100").then((d) => d.items || []).catch(() => []),
+      apiRequest("/products?limit=100").then((d) => d.items || []).catch(() => []),
+      apiRequest("/hero-slides").then((d) => d.items || []).catch(() => []),
+    ]).then(([orderItems, userItems, productItems, offerItems]) => {
+      setOrders(orderItems);
+      setUsers(userItems);
+      setProducts(productItems);
+      setOffers(offerItems);
+    });
   }, []);
 
   const stats = useMemo(() => {
@@ -24,8 +35,23 @@ const AdminDashboardPage = () => {
     const todayKey = toDayKey(new Date());
     const todayOrders = orders.filter((o) => toDayKey(o.createdAt) === todayKey).length;
     const pendingOrders = orders.filter((o) => o.status === "pending").length;
-    return { totalOrders, totalRevenue, todayOrders, pendingOrders };
-  }, [orders]);
+    const totalUsers = users.length;
+    const totalFoods = products.length;
+    const activeOffers = offers.length;
+    const pendingDeliveries = orders.filter((o) => ["assigned", "out_for_delivery"].includes(o.status)).length;
+    const lowStockFoods = products.filter((product) => typeof product.stockQty === "number" && product.stockQty <= Number(product.lowStockThreshold || 0)).length;
+    return {
+      totalOrders,
+      totalRevenue,
+      todayOrders,
+      pendingOrders,
+      totalUsers,
+      totalFoods,
+      activeOffers,
+      pendingDeliveries,
+      lowStockFoods,
+    };
+  }, [offers, orders, products, users]);
 
   const chart = useMemo(() => {
     const points = [];
@@ -114,6 +140,42 @@ const AdminDashboardPage = () => {
             </div>
           </div>
         </div>
+        <div className="admin-stat-card animate-fade-in delay-100">
+          <div className="admin-stat-top">
+            <div className="admin-stat-icon"><i className="fa-solid fa-users" /></div>
+            <div>
+              <div className="admin-stat-number">{stats.totalUsers}</div>
+              <div className="admin-stat-label">Users</div>
+            </div>
+          </div>
+        </div>
+        <div className="admin-stat-card animate-fade-in delay-200">
+          <div className="admin-stat-top">
+            <div className="admin-stat-icon"><i className="fa-solid fa-burger" /></div>
+            <div>
+              <div className="admin-stat-number">{stats.totalFoods}</div>
+              <div className="admin-stat-label">Foods</div>
+            </div>
+          </div>
+        </div>
+        <div className="admin-stat-card animate-fade-in delay-300">
+          <div className="admin-stat-top">
+            <div className="admin-stat-icon"><i className="fa-solid fa-tags" /></div>
+            <div>
+              <div className="admin-stat-number">{stats.activeOffers}</div>
+              <div className="admin-stat-label">Active Offers</div>
+            </div>
+          </div>
+        </div>
+        <div className="admin-stat-card animate-fade-in delay-400">
+          <div className="admin-stat-top">
+            <div className="admin-stat-icon"><i className="fa-solid fa-truck-fast" /></div>
+            <div>
+              <div className="admin-stat-number">{stats.pendingDeliveries}</div>
+              <div className="admin-stat-label">Pending Deliveries</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="admin-two-col">
@@ -184,6 +246,27 @@ const AdminDashboardPage = () => {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      </div>
+
+      <div className="admin-surface" style={{ marginTop: "1.2rem" }}>
+        <div className="admin-surface-head">
+          <h3 className="admin-surface-title">Operational Watchlist</h3>
+          <p className="admin-surface-subtitle">Immediate issues that may need admin attention.</p>
+        </div>
+        <div className="admin-kv">
+          <div>
+            <div className="admin-muted">Today&apos;s Orders</div>
+            <div className="admin-kv-strong">{stats.todayOrders}</div>
+          </div>
+          <div>
+            <div className="admin-muted">Low Stock Foods</div>
+            <div className="admin-kv-strong">{stats.lowStockFoods}</div>
+          </div>
+          <div>
+            <div className="admin-muted">Orders Awaiting Action</div>
+            <div className="admin-kv-strong">{stats.pendingOrders + stats.pendingDeliveries}</div>
           </div>
         </div>
       </div>

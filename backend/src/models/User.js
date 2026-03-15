@@ -18,6 +18,7 @@ const StaffSchema = new mongoose.Schema(
     nationalId: { type: String, trim: true },
     address: { type: String, trim: true },
     experience: { type: String, trim: true },
+    notes: { type: String, trim: true },
     monthlySalary: { type: Number, min: 0 },
     salaryPayDay: { type: Number, min: 1, max: 31 },
     startDate: { type: Date },

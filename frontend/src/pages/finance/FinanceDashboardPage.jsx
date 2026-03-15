@@ -24,11 +24,11 @@ const FinanceDashboardPage = () => {
     <div className="admin-page">
       <div className="admin-page-head">
         <div>
-          <h1 className="admin-title">Finance Dashboard</h1>
-          <p className="admin-subtitle">Revenue overview and payroll activity.</p>
+          <h1 className="admin-title">Accounting Dashboard</h1>
+          <p className="admin-subtitle">Accounting overview covering revenue, payroll, and payment activity.</p>
         </div>
         <div className="admin-actions">
-          <Link className="admin-link" to="/finance/payroll">Payroll</Link>
+          <Link className="admin-link" to="/finance/expenses">Expenses</Link>
         </div>
       </div>
 
@@ -115,4 +115,3 @@ const FinanceDashboardPage = () => {
 };
 
 export default FinanceDashboardPage;
-

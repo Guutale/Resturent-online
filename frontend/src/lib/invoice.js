@@ -1,3 +1,5 @@
+import { getStoredAuthToken } from "./authStorage";
+
 const RAW_API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api";
 const API_BASE = RAW_API_BASE.replace(/\/+$/, "");
 
@@ -40,7 +42,7 @@ export const openInvoice = async (orderId) => {
     win.document.close();
   }
 
-  const token = localStorage.getItem("token");
+  const token = getStoredAuthToken();
 
   const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(id)}/invoice`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},

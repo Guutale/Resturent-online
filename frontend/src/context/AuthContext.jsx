@@ -1,48 +1,42 @@
 import React, { createContext, useContext, useMemo, useState } from "react";
 import { apiRequest } from "../lib/api";
+import { clearStoredAuth, getStoredUser, setStoredAuth, setStoredUser } from "../lib/authStorage";
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [user, _setUser] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("user") || "null");
-    } catch {
-      return null;
-    }
-  });
+  const [user, _setUser] = useState(() => getStoredUser());
 
   const setUser = (nextUser) => {
-    if (nextUser) localStorage.setItem("user", JSON.stringify(nextUser));
-    else localStorage.removeItem("user");
+    setStoredUser(nextUser);
     _setUser(nextUser);
   };
 
-  const setAuth = (payload) => {
-    localStorage.setItem("token", payload.token);
-    setUser(payload.user);
+  const setAuth = (payload, { remember = true } = {}) => {
+    setStoredAuth(payload, { remember });
+    _setUser(payload.user);
   };
 
-  const login = async (email, password) => {
+  const login = async (email, password, remember = true) => {
     const data = await apiRequest("/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     });
-    setAuth(data);
+    setAuth(data, { remember });
     return data;
   };
 
-  const register = async (name, email, password) => {
+  const register = async (name, email, password, phone = "") => {
     const data = await apiRequest("/auth/register", {
       method: "POST",
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify({ name, email, password, phone }),
     });
-    setAuth(data);
+    setAuth(data, { remember: true });
     return data;
   };
 
   const logout = () => {
-    localStorage.removeItem("token");
+    clearStoredAuth();
     setUser(null);
   };
 
